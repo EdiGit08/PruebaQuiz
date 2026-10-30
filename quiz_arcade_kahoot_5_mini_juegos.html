@@ -1,0 +1,3163 @@
+<!DOCTYPE html>
+<html lang="es" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>EdisonQuiz Arcade | Kahoot Dinámico 2D</title>
+
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- Canvas Confetti CDN para el Podio Final -->
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.2/dist/confetti.browser.min.js"></script>
+
+  <!-- Google Fonts: Inter & Fredoka para estética Arcade/Kahoot -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+  <!-- Iconos Phosphor -->
+  <script src="https://unpkg.com/@phosphor-icons/web"></script>
+
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+            display: ['Fredoka', 'sans-serif'],
+          },
+          colors: {
+            kahoot: {
+              red: '#E21B3C',
+              blue: '#1368CE',
+              yellow: '#D89E00',
+              green: '#26890C',
+              purple: '#46178F',
+              dark: '#190933'
+            }
+          }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    body {
+      font-family: 'Inter', sans-serif;
+      background: radial-gradient(circle at 50% 20%, #2e1065 0%, #0f172a 70%, #020617 100%);
+      min-height: 100vh;
+      overflow-x: hidden;
+      user-select: none;
+    }
+
+    .font-arcade {
+      font-family: 'Fredoka', sans-serif;
+    }
+
+    /* Botones 3D estilo Arcade / Kahoot */
+    .btn-3d {
+      transition: transform 0.1s ease, box-shadow 0.1s ease, filter 0.15s ease;
+    }
+    .btn-3d:active:not(:disabled) {
+      transform: translateY(4px);
+    }
+
+    .card-red {
+      background: linear-gradient(180deg, #ff2a4b 0%, #e21b3c 100%);
+      box-shadow: 0 6px 0 #990f26, 0 10px 20px rgba(226, 27, 60, 0.35);
+    }
+    .card-blue {
+      background: linear-gradient(180deg, #227df0 0%, #1368ce 100%);
+      box-shadow: 0 6px 0 #0b4182, 0 10px 20px rgba(19, 104, 206, 0.35);
+    }
+    .card-yellow {
+      background: linear-gradient(180deg, #f5b60a 0%, #d89e00 100%);
+      box-shadow: 0 6px 0 #8f6800, 0 10px 20px rgba(216, 158, 0, 0.35);
+    }
+    .card-green {
+      background: linear-gradient(180deg, #32ab13 0%, #26890c 100%);
+      box-shadow: 0 6px 0 #165206, 0 10px 20px rgba(38, 137, 12, 0.35);
+    }
+
+    /* Animación de fuego para racha */
+    @keyframes flamePulse {
+      0%, 100% { transform: scale(1) rotate(-2deg); filter: drop-shadow(0 0 8px #f97316); }
+      50% { transform: scale(1.08) rotate(2deg); filter: drop-shadow(0 0 16px #ef4444); }
+    }
+    .streak-fire {
+      animation: flamePulse 0.9s infinite ease-in-out;
+    }
+
+    /* Animación de entrada de podio */
+    @keyframes riseUp {
+      from { transform: translateY(100%); opacity: 0; }
+      to { transform: translateY(0); opacity: 1; }
+    }
+    .podium-bar {
+      animation: riseUp 0.8s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+    }
+
+    /* Canvas responsivo */
+    canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+      touch-action: none;
+    }
+  </style>
+</head>
+<body class="text-slate-100 flex flex-col min-h-screen">
+
+  <!-- =========================================================================
+       BARRA SUPERIOR DE CONTROL DEL ADMINISTRADOR (Exclusiva para AdminEdisonGameQuiz)
+  ========================================================================== -->
+  <header id="adminControlBar" class="hidden sticky top-0 z-50 bg-slate-950/95 backdrop-blur-md border-b border-amber-500/40 px-3 py-2 shadow-2xl">
+    <div class="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-2">
+      <!-- Badge de Rol Admin -->
+      <div class="flex items-center gap-2">
+        <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-amber-500/20 text-amber-300 border border-amber-400/40">
+          <i class="ph-fill ph-shield-star text-base text-amber-400"></i>
+          PANEL ADMIN: <span id="adminBadgeMode">AdminEdisonGameQuiz</span>
+        </span>
+        <span class="inline-flex items-center gap-1.5 text-xs text-emerald-300 bg-emerald-950/70 px-3 py-1 rounded-full border border-emerald-500/30 font-bold">
+          <i class="ph-fill ph-users"></i>
+          Jugadores: <span id="adminBarPlayerCount">0/50</span>
+        </span>
+      </div>
+
+      <!-- Controles de Tiempo, Editor y Flujo de Ronda -->
+      <div class="flex flex-wrap items-center gap-2">
+        <!-- Selector de tiempo por pregunta -->
+        <div class="flex items-center gap-1 bg-slate-900 border border-slate-700 rounded-lg px-2 py-1 text-xs">
+          <i class="ph ph-timer text-amber-400 text-sm"></i>
+          <label for="adminTimeSelect" class="text-slate-300 font-medium">Tiempo:</label>
+          <select id="adminTimeSelect" class="bg-transparent text-amber-300 font-bold focus:outline-none cursor-pointer">
+            <option value="15" class="bg-slate-900">15s</option>
+            <option value="30" selected class="bg-slate-900">30s</option>
+            <option value="45" class="bg-slate-900">45s</option>
+            <option value="60" class="bg-slate-900">60s</option>
+          </select>
+        </div>
+
+        <!-- Botón abrir Editor de Preguntas -->
+        <button id="btnOpenQuestionEditor" class="px-3 py-1.5 rounded-lg text-xs font-bold bg-indigo-600 hover:bg-indigo-500 text-white flex items-center gap-1.5 transition shadow">
+          <i class="ph-bold ph-pencil-simple-line"></i>
+          <span>Editar Preguntas (5)</span>
+        </button>
+
+        <!-- Botón Iniciar / Siguiente Juego -->
+        <button id="btnAdminNext" class="px-3.5 py-1.5 rounded-lg text-xs font-bold bg-emerald-500 hover:bg-emerald-400 text-slate-950 flex items-center gap-1.5 transition shadow-lg">
+          <span id="btnAdminNextLabel">Iniciar Quiz</span>
+          <i class="ph-bold ph-arrow-right"></i>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- =========================================================================
+       HUD GLOBAL DEL JUGADOR (Visible durante los Mini-Juegos)
+  ========================================================================== -->
+  <nav id="playerHudBar" class="hidden bg-slate-900/80 backdrop-blur-md border-b border-white/10 px-4 py-2.5 z-30">
+    <div class="max-w-6xl mx-auto flex flex-wrap items-center justify-between gap-3">
+      <!-- Info del Jugador -->
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-purple-500 to-indigo-600 flex items-center justify-center font-arcade text-lg shadow-inner border border-white/20" id="hudAvatar">
+          J
+        </div>
+        <div>
+          <div class="flex items-center gap-2">
+            <span id="hudPlayerName" class="font-bold text-white text-sm sm:text-base">Jugador</span>
+            <span id="hudRoleTag" class="text-[10px] uppercase tracking-wider px-2 py-0.5 rounded bg-purple-500/30 text-purple-200 border border-purple-400/30 font-semibold">Jugador</span>
+          </div>
+          <div class="text-xs text-slate-400 flex items-center gap-2">
+            <span id="hudGameTitle">Juego 1 de 5</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Contador de Jugadores y Respuestas en Vivo (ej. 10/20) -->
+      <div class="flex items-center gap-2 bg-slate-950/80 border border-white/10 px-3.5 py-1.5 rounded-xl">
+        <div class="flex items-center gap-1.5 text-xs sm:text-sm font-bold text-cyan-300">
+          <i class="ph-fill ph-users-three text-base"></i>
+          <span>Jugadores:</span>
+          <span id="hudActivePlayersCount" class="font-arcade">1</span>
+        </div>
+        <span class="text-slate-600">|</span>
+        <div class="flex items-center gap-1.5 text-xs sm:text-sm font-bold text-emerald-300">
+          <i class="ph-fill ph-check-circle text-base"></i>
+          <span>Respondieron:</span>
+          <span id="hudAnsweredRatio" class="font-arcade text-base text-white">0/1</span>
+        </div>
+      </div>
+
+      <!-- Indicador de Racha y Puntos -->
+      <div class="flex items-center gap-3">
+        <!-- Badge de Racha -->
+        <div id="hudStreakContainer" class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-800/90 border border-slate-700 text-xs sm:text-sm font-bold">
+          <span id="hudStreakIcon">⚡</span>
+          <span>Racha:</span>
+          <span id="hudStreakValue" class="text-amber-400 font-arcade text-base">0</span>
+        </div>
+
+        <!-- Puntaje Total -->
+        <div class="flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-indigo-900/90 to-purple-900/90 border border-indigo-400/30 shadow">
+          <i class="ph-fill ph-trophy text-amber-400 text-lg"></i>
+          <div class="text-right">
+            <span class="text-[10px] uppercase tracking-wider text-indigo-200 block leading-none">Puntos</span>
+            <span id="hudScoreValue" class="font-arcade text-lg sm:text-xl text-white leading-none">0</span>
+          </div>
+        </div>
+
+        <!-- Botón Sonido On/Off -->
+        <button id="btnToggleMute" title="Activar/Silenciar Audio" class="p-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 transition">
+          <i id="iconSound" class="ph-fill ph-speaker-high text-lg"></i>
+        </button>
+      </div>
+    </div>
+  </nav>
+
+  <!-- =========================================================================
+       CONTENEDOR PRINCIPAL DE PANTALLAS (SPA)
+  ========================================================================== -->
+  <main class="flex-1 flex flex-col justify-center items-center p-3 sm:p-6 relative max-w-6xl w-full mx-auto">
+
+    <!-- =======================================================================
+         PANTALLA 1: LOGIN SIMPLE (Solo Nombre)
+    ======================================================================== -->
+    <section id="screenLogin" class="w-full max-w-md mx-auto my-auto">
+      <div class="bg-slate-900/90 backdrop-blur-xl border border-white/15 rounded-3xl p-6 sm:p-8 shadow-2xl relative overflow-hidden">
+        <div class="text-center mb-6">
+          <div class="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-tr from-amber-500 via-pink-500 to-purple-600 shadow-lg shadow-purple-500/30 mb-3 border border-white/20">
+            <i class="ph-fill ph-game-controller text-3xl text-white"></i>
+          </div>
+          <h1 class="font-arcade text-3xl sm:text-4xl font-bold tracking-tight text-white">
+            EdisonQuiz
+          </h1>
+          <p class="text-slate-400 text-sm mt-1">
+            Ingresa tu nombre para unirte a la partida
+          </p>
+        </div>
+
+        <form id="loginForm" class="space-y-4">
+          <div>
+            <label for="inputPlayerName" class="block text-xs font-bold uppercase tracking-wider text-purple-300 mb-1.5">
+              Nombre de Jugador
+            </label>
+            <div class="relative">
+              <i class="ph ph-user-circle absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-xl"></i>
+              <input
+                type="text"
+                id="inputPlayerName"
+                required
+                maxlength="28"
+                placeholder="Escribe tu nombre aquí..."
+                class="w-full pl-11 pr-4 py-3.5 rounded-xl bg-slate-950/90 border border-slate-700 focus:border-amber-400 focus:ring-2 focus:ring-amber-400/20 text-white placeholder-slate-500 font-semibold text-base outline-none transition"
+              />
+            </div>
+            <p id="loginErrorMsg" class="hidden text-rose-400 text-xs font-bold mt-2"></p>
+          </div>
+
+          <button
+            type="submit"
+            class="btn-3d w-full py-4 rounded-xl font-arcade text-lg font-bold text-slate-950 bg-gradient-to-r from-amber-400 via-yellow-400 to-amber-500 hover:brightness-110 shadow-[0_5px_0_#b45309] flex items-center justify-center gap-2"
+          >
+            <i class="ph-fill ph-sign-in text-2xl"></i>
+            <span>ENTRAR AL JUEGO</span>
+          </button>
+        </form>
+      </div>
+    </section>
+
+    <!-- =======================================================================
+         PANTALLA 1.5: SALA DE ESPERA (Capacidad Máxima 50 Personas)
+    ======================================================================== -->
+    <section id="screenWaitingRoom" class="hidden w-full max-w-2xl mx-auto my-auto">
+      <div class="bg-slate-900/90 backdrop-blur-xl border border-white/15 rounded-3xl p-6 sm:p-8 shadow-2xl text-center">
+        <!-- Contador Superior de Jugadores Actuales -->
+        <div class="inline-flex items-center gap-2 px-5 py-2 rounded-full bg-indigo-950 border border-indigo-400/40 text-indigo-200 font-arcade text-base sm:text-lg mb-5 shadow-inner">
+          <i class="ph-fill ph-users-three text-amber-400 text-xl"></i>
+          <span>Jugadores en Sala:</span>
+          <span id="waitingRoomCount" class="text-amber-400 font-bold">1 / 50</span>
+        </div>
+
+        <h2 id="waitingRoomTitle" class="font-arcade text-2xl sm:text-4xl text-white mb-2">
+          Sala de Espera
+        </h2>
+        <p id="waitingRoomStatusText" class="text-slate-300 text-sm sm:text-base mb-6">
+          Esperando a que el Administrador inicie el quiz...
+        </p>
+
+        <!-- Lista de Jugadores Conectados -->
+        <div class="bg-slate-950/80 border border-white/10 rounded-2xl p-4 mb-6 max-h-60 overflow-y-auto">
+          <div id="waitingPlayersGrid" class="flex flex-wrap items-center justify-center gap-2">
+            <!-- Badges de jugadores conectados -->
+          </div>
+        </div>
+
+        <!-- Panel exclusivo del Admin en la Sala de Espera -->
+        <div id="waitingAdminActions" class="hidden pt-4 border-t border-white/10 flex flex-wrap items-center justify-center gap-3">
+          <button id="btnLobbyEditQuestions" type="button" class="px-5 py-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-sm flex items-center gap-2 shadow-lg transition">
+            <i class="ph-bold ph-pencil-simple-line text-lg"></i>
+            <span>Configurar Preguntas</span>
+          </button>
+          <button id="btnLobbyStartQuiz" type="button" class="btn-3d px-7 py-3.5 rounded-xl bg-gradient-to-r from-emerald-400 to-emerald-500 text-slate-950 font-arcade font-bold text-base sm:text-lg shadow-[0_4px_0_#065f46] flex items-center gap-2">
+            <i class="ph-fill ph-play-circle text-2xl"></i>
+            <span>¡INICIAR QUIZ AHORA!</span>
+          </button>
+        </div>
+
+        <!-- Indicador animado para Jugadores Normales -->
+        <div id="waitingPlayerSpinner" class="flex items-center justify-center gap-2 text-amber-300 text-xs sm:text-sm font-semibold">
+          <span class="w-2.5 h-2.5 rounded-full bg-amber-400 animate-ping"></span>
+          <span>La partida comenzará automáticamente cuando el anfitrión presione Iniciar</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- =======================================================================
+         PANTALLA 2: ÁREA DE JUEGO DINÁMICA (Rondas 1 a 5)
+    ======================================================================== -->
+    <section id="screenGame" class="hidden w-full flex-1 flex flex-col gap-3">
+
+      <!-- Cabecera de la Pregunta y Temporizador -->
+      <div class="bg-slate-900/90 backdrop-blur-md border border-white/15 rounded-2xl p-3 sm:p-4 shadow-xl">
+        <div class="flex flex-wrap items-center justify-between gap-2 mb-2">
+          <!-- Etiqueta del Mini-Juego Actual -->
+          <div class="flex items-center gap-2">
+            <span id="badgeRoundNumber" class="px-2.5 py-0.5 rounded-lg bg-purple-600 text-white font-arcade text-xs sm:text-sm">
+              RONDA 1/5
+            </span>
+            <span id="badgeMiniGameType" class="text-xs sm:text-sm font-bold text-amber-300 flex items-center gap-1">
+              <i class="ph-fill ph-squares-four"></i> Kahoot Clásico (Grid 2x2)
+            </span>
+          </div>
+
+          <!-- Estado de la Ronda y Reloj Numérico -->
+          <div class="flex items-center gap-3">
+            <span id="roundStatusChip" class="px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-400/30">
+              En curso - ¡Selecciona tu respuesta!
+            </span>
+            <div class="flex items-center gap-1.5 bg-slate-950 px-3 py-1 rounded-xl border border-white/10">
+              <i class="ph-bold ph-clock-countdown text-amber-400 text-lg"></i>
+              <span id="timerNumber" class="font-arcade text-lg sm:text-xl text-white">30s</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Enunciado de la Pregunta -->
+        <h2 id="questionHeading" class="font-arcade text-lg sm:text-2xl md:text-3xl text-center text-white py-2 px-3 bg-slate-950/60 rounded-xl border border-white/5 shadow-inner">
+          ¿Cuál es el enunciado de la pregunta actual?
+        </h2>
+
+        <!-- Barra de progreso del temporizador -->
+        <div class="w-full h-2.5 bg-slate-950 rounded-full overflow-hidden mt-3 border border-white/10">
+          <div id="timerProgressBar" class="h-full bg-gradient-to-r from-emerald-400 via-amber-400 to-rose-500 transition-all duration-100" style="width: 100%;"></div>
+        </div>
+      </div>
+
+      <!-- =====================================================================
+           CONTENEDOR DEL MINI-JUEGO 1: KAHOOT CLÁSICO (GRID 2x2)
+      ====================================================================== -->
+      <div id="containerGame1" class="hidden flex-1 grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 min-h-[320px]">
+        <!-- Generado dinámicamente por MiniGame1_Kahoot -->
+      </div>
+
+      <!-- =====================================================================
+           CONTENEDOR DE MINI-JUEGOS CANVAS 2D (Juegos 2, 3, 4 y 5)
+      ====================================================================== -->
+      <div id="containerCanvasGames" class="hidden flex-1 flex flex-col gap-2">
+        <!-- Marco del Canvas HTML5 -->
+        <div class="relative w-full h-[380px] sm:h-[430px] bg-slate-950 rounded-2xl border-2 border-indigo-500/40 shadow-2xl overflow-hidden">
+          <canvas id="gameCanvas"></canvas>
+
+          <!-- Overlay informativo de instrucciones rápidas -->
+          <div id="canvasTopHint" class="absolute top-2.5 left-1/2 -translate-x-1/2 pointer-events-none px-3.5 py-1 rounded-full bg-slate-950/85 border border-white/15 text-xs font-semibold text-amber-200 shadow-lg text-center whitespace-nowrap">
+            Usa las flechas o botones táctiles
+          </div>
+        </div>
+
+        <!-- Controles Táctiles / Botonera Inferior adaptable según el Mini-Juego -->
+        <div id="touchControlsBar" class="bg-slate-900/90 border border-white/10 rounded-2xl p-2.5 flex flex-wrap items-center justify-between gap-2">
+          <!-- Botones de Dirección Izquierda / Derecha / Arriba / Abajo -->
+          <div class="flex flex-wrap items-center gap-1.5">
+            <button id="btnTouchLeft" type="button" class="btn-3d px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 active:bg-indigo-600 border border-slate-600 text-white font-bold flex items-center gap-1 shadow text-xs sm:text-sm">
+              <i class="ph-bold ph-caret-left text-base"></i>
+              <span>Izq (A/←)</span>
+            </button>
+            <button id="btnTouchRight" type="button" class="btn-3d px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 active:bg-indigo-600 border border-slate-600 text-white font-bold flex items-center gap-1 shadow text-xs sm:text-sm">
+              <span>Der (D/→)</span>
+              <i class="ph-bold ph-caret-right text-base"></i>
+            </button>
+            <!-- Botones Arriba / Abajo para el Juego 3 (Nave Espacial) -->
+            <button id="btnTouchUp" type="button" class="hidden btn-3d px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 active:bg-indigo-600 border border-slate-600 text-white font-bold items-center gap-1 shadow text-xs sm:text-sm">
+              <i class="ph-bold ph-caret-up text-base"></i>
+              <span>Arriba (W/↑)</span>
+            </button>
+            <button id="btnTouchDown" type="button" class="hidden btn-3d px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 active:bg-indigo-600 border border-slate-600 text-white font-bold items-center gap-1 shadow text-xs sm:text-sm">
+              <i class="ph-bold ph-caret-down text-base"></i>
+              <span>Abajo (S/↓)</span>
+            </button>
+          </div>
+
+          <!-- Botones numéricos rápidos para Juego 4 (Cintas) -->
+          <div id="laneQuickButtons" class="hidden items-center gap-1.5">
+            <span class="text-xs text-slate-400 mr-1 hidden md:inline">Carril:</span>
+            <button data-lane="0" class="lane-btn px-3 py-2 rounded-lg bg-rose-600 hover:bg-rose-500 text-white font-arcade text-sm">1</button>
+            <button data-lane="1" class="lane-btn px-3 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-arcade text-sm">2</button>
+            <button data-lane="2" class="lane-btn px-3 py-2 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 font-arcade text-sm">3</button>
+            <button data-lane="3" class="lane-btn px-3 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-arcade text-sm">4</button>
+          </div>
+
+          <!-- Botones de Acción y Restaurar (Juego 5) -->
+          <div class="flex items-center gap-2">
+            <button id="btnRestoreShot" type="button" class="hidden btn-3d px-4 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-arcade font-bold text-xs sm:text-sm shadow-[0_4px_0_#881337] items-center gap-1.5">
+              <i class="ph-bold ph-arrow-counter-clockwise text-base"></i>
+              <span>Restaurar Selección</span>
+            </button>
+
+            <button id="btnTouchAction" type="button" class="btn-3d px-5 py-2.5 rounded-xl bg-gradient-to-r from-amber-400 to-orange-500 text-slate-950 font-arcade font-bold text-sm sm:text-base shadow-[0_4px_0_#9a3412] flex items-center gap-2">
+              <i class="ph-fill ph-lightning text-lg"></i>
+              <span id="btnTouchActionText">ACCIÓN (ESPACIO)</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- =======================================================================
+         PANTALLA 2.5: RESULTADOS ENTRE JUEGO Y JUEGO + TOP 10 JUGADORES
+    ======================================================================== -->
+    <section id="screenRoundResults" class="hidden w-full max-w-3xl mx-auto my-auto py-2">
+      <div class="bg-slate-900/95 backdrop-blur-xl border border-white/15 rounded-3xl p-5 sm:p-7 shadow-2xl space-y-5">
+        <!-- Tarjeta de Resultado Individual del Jugador -->
+        <div id="intermissionPlayerCard" class="rounded-2xl p-5 border text-center shadow-lg">
+          <div id="intermissionIcon" class="text-4xl sm:text-5xl mb-2">🎉</div>
+          <h2 id="intermissionTitle" class="font-arcade text-2xl sm:text-3xl text-white">
+            ¡Respuesta Correcta!
+          </h2>
+          <p id="intermissionSubtitle" class="text-sm text-slate-200 mt-1">
+            Ganaste +100 puntos en esta ronda
+          </p>
+          <div id="intermissionStreakBanner" class="hidden mt-3 inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-gradient-to-r from-orange-500 to-red-600 text-white font-arcade text-sm shadow-lg streak-fire">
+            🔥 ¡En Racha! Multiplicador x1.5 activado (150 pts)
+          </div>
+        </div>
+
+        <!-- Top 10 de Jugadores Actuales -->
+        <div class="bg-slate-950/85 border border-white/10 rounded-2xl overflow-hidden">
+          <div class="px-4 py-3 bg-slate-900 border-b border-white/10 flex items-center justify-between">
+            <h3 class="font-arcade text-base sm:text-lg text-amber-300 flex items-center gap-2">
+              <i class="ph-fill ph-ranking text-xl"></i>
+              Top 10 Jugadores
+            </h3>
+            <span id="intermissionRoundLabel" class="text-xs text-slate-400 font-semibold">Ronda 1 de 5</span>
+          </div>
+          <div id="intermissionTop10List" class="divide-y divide-white/5 max-h-64 overflow-y-auto">
+            <!-- Top 10 generado dinámicamente -->
+          </div>
+        </div>
+
+        <!-- Pie de avance (Botón para Admin, Mensaje de espera para Jugador) -->
+        <div class="text-center pt-1">
+          <button id="btnIntermissionNextAdmin" type="button" class="hidden btn-3d mx-auto px-7 py-3.5 rounded-xl bg-gradient-to-r from-emerald-400 to-emerald-500 text-slate-950 font-arcade font-bold text-base sm:text-lg shadow-[0_4px_0_#065f46] items-center gap-2">
+            <span id="btnIntermissionNextText">Siguiente Juego</span>
+            <i class="ph-bold ph-arrow-right text-xl"></i>
+          </button>
+          <p id="intermissionWaitingMsg" class="text-xs sm:text-sm text-amber-300 font-semibold flex items-center justify-center gap-2">
+            <span class="w-2 h-2 rounded-full bg-amber-400 animate-ping"></span>
+            Esperando a que el Administrador continúe al siguiente juego...
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <!-- =======================================================================
+         PANTALLA 3: PODIO FINAL Y RANKING GENERAL
+    ======================================================================== -->
+    <section id="screenPodium" class="hidden w-full max-w-4xl mx-auto my-auto py-4">
+      <div class="bg-slate-900/90 backdrop-blur-xl border border-white/15 rounded-3xl p-5 sm:p-8 shadow-2xl">
+        <!-- Cabecera de Celebración -->
+        <div class="text-center mb-6">
+          <span class="inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full bg-amber-500/20 border border-amber-400/40 text-amber-300 text-xs font-bold uppercase tracking-widest mb-2">
+            <i class="ph-fill ph-sparkle"></i> Partida Finalizada
+          </span>
+          <h1 class="font-arcade text-3xl sm:text-5xl text-white">
+            🏆 Podio de Campeones 🏆
+          </h1>
+          <p class="text-slate-300 text-sm mt-1">
+            Resultados acumulados tras los 5 Mini-Juegos Dinámicos
+          </p>
+        </div>
+
+        <!-- ESTRUCTURA VISUAL DEL PODIO (2º Izquierda, 1º Centro más alto, 3º Derecha) -->
+        <div id="podiumPedestals" class="grid grid-cols-3 gap-2 sm:gap-4 items-end max-w-2xl mx-auto pt-8 pb-4 px-2 min-h-[290px]">
+          <!-- Renderizado dinámicamente -->
+        </div>
+
+        <!-- Botón Jugar de Nuevo exclusivo para el Administrador -->
+        <div id="podiumAdminControls" class="hidden flex items-center justify-center my-6">
+          <button id="btnPlayAgain" class="px-6 py-3 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 font-arcade text-base font-bold flex items-center gap-2 shadow-lg transition">
+            <i class="ph-bold ph-arrow-counter-clockwise text-lg"></i>
+            <span>Jugar de Nuevo (Reiniciar Sesión)</span>
+          </button>
+        </div>
+
+        <!-- Tabla de Ranking Completo -->
+        <div class="bg-slate-950/80 border border-white/10 rounded-2xl overflow-hidden mt-4">
+          <div class="px-4 py-3 bg-slate-900 border-b border-white/10 flex items-center justify-between">
+            <h3 class="font-arcade text-base sm:text-lg text-white flex items-center gap-2">
+              <i class="ph-fill ph-list-numbers text-amber-400"></i>
+              Clasificación General de la Sesión
+            </h3>
+            <span id="rankingTotalPlayers" class="text-xs text-slate-400">0 jugadores</span>
+          </div>
+          <div class="divide-y divide-white/5 max-h-64 overflow-y-auto" id="rankingListContainer">
+            <!-- Filas generadas dinámicamente -->
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- =========================================================================
+       MODAL DEL ADMINISTRADOR: EDITOR DE LAS 5 PREGUNTAS
+  ========================================================================== -->
+  <div id="modalQuestionEditor" class="hidden fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-slate-900 border border-amber-500/40 rounded-3xl max-w-3xl w-full max-h-[90vh] flex flex-col shadow-2xl overflow-hidden">
+      <!-- Header Modal -->
+      <div class="px-6 py-4 bg-slate-950 border-b border-white/10 flex items-center justify-between">
+        <div class="flex items-center gap-2.5">
+          <i class="ph-fill ph-sliders-horizontal text-amber-400 text-2xl"></i>
+          <div>
+            <h3 class="font-arcade text-xl text-white">Editor de Preguntas del Administrador</h3>
+            <p class="text-xs text-slate-400">Personaliza el enunciado, las 4 opciones y la respuesta correcta de cada Mini-Juego</p>
+          </div>
+        </div>
+        <button id="btnCloseEditorModal" class="p-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300">
+          <i class="ph-bold ph-x text-lg"></i>
+        </button>
+      </div>
+
+      <!-- Selector de pestaña de pregunta (1 a 5) -->
+      <div class="px-6 pt-3 bg-slate-950/60 border-b border-white/10 flex gap-2 overflow-x-auto" id="editorTabsContainer">
+        <!-- Generado dinámicamente -->
+      </div>
+
+      <!-- Cuerpo del Formulario del Editor -->
+      <div class="p-6 overflow-y-auto space-y-4 flex-1">
+        <div>
+          <label class="block text-xs font-bold uppercase text-amber-300 mb-1">
+            Enunciado de la Pregunta (<span id="editorGameLabel">Juego 1</span>)
+          </label>
+          <input
+            type="text"
+            id="editorQuestionInput"
+            class="w-full px-4 py-2.5 rounded-xl bg-slate-950 border border-slate-700 text-white font-semibold focus:border-amber-400 outline-none"
+          />
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <!-- Opción 1 (Rojo) -->
+          <div class="p-3 rounded-xl bg-rose-950/30 border border-rose-500/40">
+            <div class="flex items-center justify-between mb-1.5">
+              <span class="text-xs font-bold text-rose-300">Opción 1 (Rojo ▲)</span>
+              <label class="flex items-center gap-1 text-xs text-emerald-300 cursor-pointer font-semibold">
+                <input type="radio" name="editorCorrectOption" value="0" class="accent-emerald-400" />
+                Correcta
+              </label>
+            </div>
+            <input type="text" id="editorOpt0" class="w-full px-3 py-2 rounded-lg bg-slate-950 border border-slate-700 text-white text-sm" />
+          </div>
+
+          <!-- Opción 2 (Azul) -->
+          <div class="p-3 rounded-xl bg-blue-950/30 border border-blue-500/40">
+            <div class="flex items-center justify-between mb-1.5">
+              <span class="text-xs font-bold text-blue-300">Opción 2 (Azul ◆)</span>
+              <label class="flex items-center gap-1 text-xs text-emerald-300 cursor-pointer font-semibold">
+                <input type="radio" name="editorCorrectOption" value="1" class="accent-emerald-400" />
+                Correcta
+              </label>
+            </div>
+            <input type="text" id="editorOpt1" class="w-full px-3 py-2 rounded-lg bg-slate-950 border border-slate-700 text-white text-sm" />
+          </div>
+
+          <!-- Opción 3 (Amarillo) -->
+          <div class="p-3 rounded-xl bg-amber-950/30 border border-amber-500/40">
+            <div class="flex items-center justify-between mb-1.5">
+              <span class="text-xs font-bold text-amber-300">Opción 3 (Amarillo ●)</span>
+              <label class="flex items-center gap-1 text-xs text-emerald-300 cursor-pointer font-semibold">
+                <input type="radio" name="editorCorrectOption" value="2" class="accent-emerald-400" />
+                Correcta
+              </label>
+            </div>
+            <input type="text" id="editorOpt2" class="w-full px-3 py-2 rounded-lg bg-slate-950 border border-slate-700 text-white text-sm" />
+          </div>
+
+          <!-- Opción 4 (Verde) -->
+          <div class="p-3 rounded-xl bg-emerald-950/30 border border-emerald-500/40">
+            <div class="flex items-center justify-between mb-1.5">
+              <span class="text-xs font-bold text-emerald-300">Opción 4 (Verde ■)</span>
+              <label class="flex items-center gap-1 text-xs text-emerald-300 cursor-pointer font-semibold">
+                <input type="radio" name="editorCorrectOption" value="3" class="accent-emerald-400" />
+                Correcta
+              </label>
+            </div>
+            <input type="text" id="editorOpt3" class="w-full px-3 py-2 rounded-lg bg-slate-950 border border-slate-700 text-white text-sm" />
+          </div>
+        </div>
+      </div>
+
+      <!-- Footer Modal (Sin botón restaurar por defecto) -->
+      <div class="px-6 py-4 bg-slate-950 border-t border-white/10 flex items-center justify-end gap-2">
+        <button id="btnSaveQuestions" type="button" class="px-5 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-arcade font-bold text-sm shadow-lg flex items-center gap-1.5">
+          <i class="ph-bold ph-floppy-disk"></i>
+          <span>Guardar y Sincronizar</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- =========================================================================
+       NOTIFICACIÓN TOAST FLOTANTE (Sin usar alert())
+  ========================================================================== -->
+  <div id="toastNotification" class="fixed bottom-4 right-4 z-50 pointer-events-none opacity-0 translate-y-4 transition-all duration-300 bg-slate-900/95 border border-amber-400/40 text-white px-4 py-3 rounded-2xl shadow-2xl flex items-center gap-2.5 text-sm font-semibold">
+    <i class="ph-fill ph-info text-amber-400 text-xl"></i>
+    <span id="toastMessage">Mensaje</span>
+  </div>
+
+  <!-- =========================================================================
+       ARQUITECTURA MODULAR EN CLASES ES6
+       (Puedes separar cada clase en su propio archivo .js en VS Code si lo deseas)
+  ========================================================================== -->
+  <script>
+    /**
+     * =========================================================================
+     * CLASE 1: SoundFX (Sintetizador de Audio Retro con Web Audio API)
+     * Cero dependencias de archivos MP3 externos.
+     * =========================================================================
+     */
+    class SoundFX {
+      constructor() {
+        this.ctx = null;
+        this.muted = false;
+      }
+
+      init() {
+        if (!this.ctx) {
+          const AudioCtx = window.AudioContext || window.webkitAudioContext;
+          if (AudioCtx) this.ctx = new AudioCtx();
+        }
+        if (this.ctx && this.ctx.state === 'suspended') {
+          this.ctx.resume();
+        }
+      }
+
+      toggleMute() {
+        this.muted = !this.muted;
+        return this.muted;
+      }
+
+      playTone(freq = 440, duration = 0.12, type = 'sine', volume = 0.12, slideTo = null) {
+        if (this.muted) return;
+        try {
+          this.init();
+          if (!this.ctx) return;
+
+          const now = this.ctx.currentTime;
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+
+          osc.type = type;
+          osc.frequency.setValueAtTime(freq, now);
+          if (slideTo) {
+            osc.frequency.exponentialRampToValueAtTime(slideTo, now + duration);
+          }
+
+          gain.gain.setValueAtTime(volume, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + duration);
+
+          osc.connect(gain);
+          gain.connect(this.ctx.destination);
+
+          osc.start(now);
+          osc.stop(now + duration);
+        } catch (e) {
+          // Ignorar si el navegador bloquea autoplay antes de interacción
+        }
+      }
+
+      select() {
+        this.playTone(520, 0.09, 'triangle', 0.14, 680);
+      }
+
+      jump() {
+        this.playTone(260, 0.16, 'sine', 0.14, 580);
+      }
+
+      shoot() {
+        this.playTone(720, 0.18, 'sawtooth', 0.12, 160);
+      }
+
+      correct() {
+        this.playTone(523.25, 0.12, 'triangle', 0.16);
+        setTimeout(() => this.playTone(659.25, 0.12, 'triangle', 0.16), 100);
+        setTimeout(() => this.playTone(783.99, 0.25, 'triangle', 0.18), 200);
+      }
+
+      wrong() {
+        this.playTone(240, 0.18, 'sawtooth', 0.14, 150);
+        setTimeout(() => this.playTone(170, 0.28, 'sawtooth', 0.14, 110), 150);
+      }
+
+      fanfare() {
+        const notes = [523.25, 659.25, 783.99, 1046.5];
+        notes.forEach((n, idx) => {
+          setTimeout(() => this.playTone(n, 0.22, 'triangle', 0.18), idx * 130);
+        });
+      }
+    }
+
+    /**
+     * =========================================================================
+     * CLASE 2: ScoreSystem (Sistema de Puntuación y Racha x1.5)
+     * - Puntaje Base: 100 pts por acierto.
+     * - Racha empieza a partir de la 2da respuesta correcta seguida y multiplica
+     *   por 1.5 los puntos de ese juego (100 * 1.5 = 150 pts).
+     * =========================================================================
+     */
+    class ScoreSystem {
+      constructor() {
+        this.reset();
+      }
+
+      reset() {
+        this.score = 0;
+        this.streak = 0;
+        this.maxStreak = 0;
+      }
+
+      /**
+       * Evalúa una ronda para el jugador actual
+       * @param {boolean} isCorrect - Si acertó la opción correcta
+       */
+      evaluateAnswer(isCorrect) {
+        if (!isCorrect) {
+          this.streak = 0;
+          return {
+            isCorrect: false,
+            basePoints: 0,
+            inStreak: false,
+            totalEarned: 0,
+            currentStreak: 0,
+            totalScore: this.score
+          };
+        }
+
+        // Incrementar racha de aciertos consecutivos
+        this.streak += 1;
+        if (this.streak > this.maxStreak) {
+          this.maxStreak = this.streak;
+        }
+
+        const basePoints = 100;
+        const inStreak = this.streak >= 2;
+        const totalEarned = inStreak ? Math.round(basePoints * 1.5) : basePoints; // 150 si está en racha (2+ seguidas)
+
+        this.score += totalEarned;
+
+        return {
+          isCorrect: true,
+          basePoints,
+          inStreak,
+          totalEarned,
+          currentStreak: this.streak,
+          totalScore: this.score
+        };
+      }
+    }
+
+    /**
+     * =========================================================================
+     * CLASE 3: QuizDataManager (Gestión de Preguntas y Persistencia LocalStorage)
+     * =========================================================================
+     */
+    class QuizDataManager {
+      constructor() {
+        this.STORAGE_KEY = 'edison_quiz_questions_v1';
+        this.questions = this.loadQuestions();
+      }
+
+      getDefaultQuestions() {
+        return [
+          {
+            gameTitle: 'Juego 1: Kahoot Clásico (Grid 2x2)',
+            question: '¿Qué estructura de datos utiliza el principio LIFO (Last In, First Out)?',
+            options: ['Cola (Queue)', 'Pila (Stack)', 'Árbol Binario', 'Lista Enlazada'],
+            correctIndex: 1
+          },
+          {
+            gameTitle: 'Juego 2: Plataformas 2D (Stickman Jumper)',
+            question: '¿Cuál etiqueta de HTML5 se utiliza para dibujar gráficos y físicas 2D mediante JavaScript?',
+            options: ['<canvas>', '<svg-physics>', '<frame2d>', '<webgl>'],
+            correctIndex: 0
+          },
+          {
+            gameTitle: 'Juego 3: Nave Espacial (Vertical Galaga Doors)',
+            question: 'En JavaScript ES6, ¿qué palabra clave define una constante cuya referencia no puede reasignarse?',
+            options: ['var', 'static', 'const', 'let'],
+            correctIndex: 2
+          },
+          {
+            gameTitle: 'Juego 4: Cintas Transportadoras (Conveyor Lanes)',
+            question: '¿Qué API del navegador permite comunicar pestañas abiertas del mismo origen sin servidor?',
+            options: ['WebSocket API', 'BroadcastChannel API', 'Fetch REST API', 'GraphQL Client'],
+            correctIndex: 1
+          },
+          {
+            gameTitle: 'Juego 5: El Cañón / Tiro al Blanco (Target Cannon)',
+            question: '¿Cuál propiedad de CSS Flexbox alinea los elementos a lo largo del eje principal?',
+            options: ['align-items', 'display-grid', 'z-index', 'justify-content'],
+            correctIndex: 3
+          }
+        ];
+      }
+
+      loadQuestions() {
+        try {
+          const raw = localStorage.getItem(this.STORAGE_KEY);
+          if (raw) {
+            const parsed = JSON.parse(raw);
+            if (Array.isArray(parsed) && parsed.length === 5) return parsed;
+          }
+        } catch (e) {
+          console.warn('Error leyendo preguntas en LocalStorage:', e);
+        }
+        return this.getDefaultQuestions();
+      }
+
+      saveQuestions(newQuestions) {
+        this.questions = newQuestions;
+        try {
+          localStorage.setItem(this.STORAGE_KEY, JSON.stringify(this.questions));
+        } catch (e) {
+          console.warn('Error guardando preguntas:', e);
+        }
+      }
+
+      resetToDefaults() {
+        const defaults = this.getDefaultQuestions();
+        this.saveQuestions(defaults);
+        return defaults;
+      }
+    }
+
+    /**
+     * =========================================================================
+     * CLASE 4: SyncManager (Sincronización Multi-Pestaña con BroadcastChannel + LocalStorage)
+     * Gestiona estado de la sala (máx 50 jugadores), quiénes han respondido y rondas.
+     * =========================================================================
+     */
+    class SyncManager {
+      constructor(onEventCallback) {
+        this.CHANNEL_NAME = 'edison_game_quiz_channel_v1';
+        this.PLAYERS_KEY = 'edison_game_quiz_players_v1';
+        this.STATE_KEY = 'edison_game_quiz_session_state_v1';
+        this.MAX_PLAYERS = 50;
+        this.onEventCallback = onEventCallback;
+        this.channel = null;
+
+        if ('BroadcastChannel' in window) {
+          this.channel = new BroadcastChannel(this.CHANNEL_NAME);
+          this.channel.onmessage = (event) => {
+            if (event.data && this.onEventCallback) {
+              this.onEventCallback(event.data);
+            }
+          };
+        }
+
+        // Fallback con evento storage entre pestañas
+        window.addEventListener('storage', (e) => {
+          if (e.key === 'edison_sync_event' && e.newValue) {
+            try {
+              const data = JSON.parse(e.newValue);
+              if (this.onEventCallback) this.onEventCallback(data);
+            } catch (err) {}
+          }
+        });
+      }
+
+      broadcast(type, payload = {}) {
+        const message = { type, payload, timestamp: Date.now() };
+        if (this.channel) {
+          this.channel.postMessage(message);
+        }
+        try {
+          localStorage.setItem('edison_sync_event', JSON.stringify(message));
+        } catch (e) {}
+      }
+
+      getSessionState() {
+        try {
+          const raw = localStorage.getItem(this.STATE_KEY);
+          return raw ? JSON.parse(raw) : { status: 'WAITING', currentRound: 0, duration: 30 };
+        } catch (e) {
+          return { status: 'WAITING', currentRound: 0, duration: 30 };
+        }
+      }
+
+      setSessionState(newState) {
+        const merged = { ...this.getSessionState(), ...newState, updatedAt: Date.now() };
+        try {
+          localStorage.setItem(this.STATE_KEY, JSON.stringify(merged));
+        } catch (e) {}
+        return merged;
+      }
+
+      getAllPlayers() {
+        try {
+          const raw = localStorage.getItem(this.PLAYERS_KEY);
+          const list = raw ? JSON.parse(raw) : [];
+          // Filtrar solo jugadores normales (excluir al Admin del conteo de 50 jugadores)
+          return list.filter((p) => !p.isAdmin);
+        } catch (e) {
+          return [];
+        }
+      }
+
+      upsertPlayer(playerObj) {
+        if (playerObj.isAdmin) return this.getAllPlayers();
+        const players = this.getAllPlayers();
+        const idx = players.findIndex((p) => p.id === playerObj.id || p.name.toLowerCase() === playerObj.name.toLowerCase());
+        if (idx >= 0) {
+          players[idx] = { ...players[idx], ...playerObj, updatedAt: Date.now() };
+        } else {
+          if (players.length >= this.MAX_PLAYERS) {
+            return null; // Sala llena (máx 50)
+          }
+          players.push({ ...playerObj, updatedAt: Date.now() });
+        }
+        try {
+          localStorage.setItem(this.PLAYERS_KEY, JSON.stringify(players));
+        } catch (e) {}
+        this.broadcast('PLAYERS_UPDATED', { players });
+        return players;
+      }
+
+      resetAllPlayersAnsweredStatus() {
+        const players = this.getAllPlayers().map((p) => ({
+          ...p,
+          answeredRound: -1,
+          hasAnswered: false
+        }));
+        try {
+          localStorage.setItem(this.PLAYERS_KEY, JSON.stringify(players));
+        } catch (e) {}
+        this.broadcast('PLAYERS_UPDATED', { players });
+      }
+
+      clearPlayers() {
+        try {
+          localStorage.removeItem(this.PLAYERS_KEY);
+        } catch (e) {}
+        this.broadcast('PLAYERS_UPDATED', { players: [] });
+      }
+    }
+
+    /**
+     * =========================================================================
+     * CLASE 5: MiniGame1_Kahoot (Juego 1: Kahoot Clásico Grid 2x2)
+     * 4 tarjetas vibrantes (Rojo, Azul, Amarillo, Verde).
+     * =========================================================================
+     */
+    class MiniGame1_Kahoot {
+      constructor(containerEl, onSelectCallback) {
+        this.container = containerEl;
+        this.onSelect = onSelectCallback;
+        this.selectedOption = null;
+        this.locked = false;
+      }
+
+      start(questionObj) {
+        this.selectedOption = null;
+        this.locked = false;
+        this.container.innerHTML = '';
+
+        const styles = [
+          { cls: 'card-red', icon: '▲', label: 'Opción 1' },
+          { cls: 'card-blue', icon: '◆', label: 'Opción 2' },
+          { cls: 'card-yellow', icon: '●', label: 'Opción 3' },
+          { cls: 'card-green', icon: '■', label: 'Opción 4' }
+        ];
+
+        questionObj.options.forEach((optText, idx) => {
+          const btn = document.createElement('button');
+          btn.type = 'button';
+          btn.dataset.index = idx;
+          btn.className = `kahoot-card btn-3d ${styles[idx].cls} rounded-3xl p-5 sm:p-7 flex items-center gap-4 text-left text-white relative overflow-hidden transition-all duration-200 border-2 border-white/20`;
+
+          btn.innerHTML = `
+            <div class="w-12 h-12 sm:w-16 sm:h-16 rounded-2xl bg-black/25 flex items-center justify-center font-arcade text-2xl sm:text-4xl shrink-0 shadow-inner">
+              ${styles[idx].icon}
+            </div>
+            <div class="flex-1">
+              <span class="text-[11px] uppercase tracking-wider opacity-80 font-bold block mb-0.5">${styles[idx].label}</span>
+              <span class="font-arcade text-lg sm:text-2xl leading-snug block">${optText}</span>
+            </div>
+            <div class="status-badge hidden px-3 py-1 rounded-full bg-white text-slate-950 font-arcade text-xs sm:text-sm shadow">
+              SELLADA
+            </div>
+          `;
+
+          btn.addEventListener('click', () => {
+            if (this.locked) return;
+            this.locked = true;
+            this.selectedOption = idx;
+            this.highlightSelection(idx);
+            this.onSelect(idx);
+          });
+
+          this.container.appendChild(btn);
+        });
+      }
+
+      highlightSelection(selectedIdx) {
+        const cards = this.container.querySelectorAll('.kahoot-card');
+        cards.forEach((card, idx) => {
+          const badge = card.querySelector('.status-badge');
+          if (idx === selectedIdx) {
+            card.classList.add('ring-4', 'ring-white', 'scale-[1.02]');
+            if (badge) badge.classList.remove('hidden');
+          } else {
+            card.classList.add('opacity-45', 'scale-[0.98]');
+          }
+        });
+      }
+
+      reveal(correctIdx) {
+        this.locked = true;
+        const cards = this.container.querySelectorAll('.kahoot-card');
+        cards.forEach((card, idx) => {
+          card.classList.remove('opacity-45', 'scale-[0.98]', 'scale-[1.02]');
+          const badge = card.querySelector('.status-badge');
+          if (idx === correctIdx) {
+            card.classList.add('ring-4', 'ring-emerald-300', 'brightness-110');
+            if (badge) {
+              badge.classList.remove('hidden');
+              badge.textContent = '✓ CORRECTA';
+              badge.className = 'status-badge px-3 py-1 rounded-full bg-emerald-400 text-slate-950 font-arcade text-xs sm:text-sm shadow';
+            }
+          } else {
+            card.classList.add('opacity-30', 'grayscale-[60%]');
+            if (idx === this.selectedOption && badge) {
+              badge.classList.remove('hidden');
+              badge.textContent = '✗ TU ELECCIÓN';
+              badge.className = 'status-badge px-3 py-1 rounded-full bg-rose-500 text-white font-arcade text-xs sm:text-sm shadow';
+            }
+          }
+        });
+      }
+
+      stop() {}
+    }
+
+    /**
+     * =========================================================================
+     * CLASE 6: MiniGame2_Platformer (Juego 2: Plataformas 2D - Stickman Jumper)
+     * Plataformas más bajas y salto mejorado para que el muñeco llegue sin problema.
+     * =========================================================================
+     */
+    class MiniGame2_Platformer {
+      constructor(canvas, onSelectCallback, soundFX) {
+        this.canvas = canvas;
+        this.ctx = canvas.getContext('2d');
+        this.onSelect = onSelectCallback;
+        this.sound = soundFX;
+
+        this.running = false;
+        this.revealed = false;
+        this.correctIdx = 0;
+        this.selectedOption = null;
+
+        this.keys = { left: false, right: false };
+        this.colors = ['#E21B3C', '#1368CE', '#D89E00', '#26890C'];
+      }
+
+      start(questionObj) {
+        this.question = questionObj;
+        this.correctIdx = questionObj.correctIndex;
+        this.revealed = false;
+        this.selectedOption = null;
+        this.running = true;
+
+        this.resize();
+
+        // Estado del Stickman
+        this.player = {
+          x: this.width / 2,
+          y: this.height - 28,
+          vx: 0,
+          vy: 0,
+          radius: 14,
+          height: 44,
+          onGround: true,
+          walkCycle: 0,
+          currentPlatform: null
+        };
+
+        this.setupPlatforms();
+      }
+
+      resize() {
+        const rect = this.canvas.parentElement.getBoundingClientRect();
+        this.width = this.canvas.width = rect.width || 800;
+        this.height = this.canvas.height = rect.height || 400;
+        this.setupPlatforms();
+      }
+
+      setupPlatforms() {
+        if (!this.question) return;
+        const padX = this.width * 0.04;
+        const usableW = this.width - padX * 2;
+        const platW = usableW / 4 - 14;
+        const floorY = this.height - 28;
+        // Plataformas más bajas (a solo ~85px - 100px del suelo) para que el salto llegue con total facilidad
+        const basePlatY = floorY - 88;
+
+        this.platforms = this.question.options.map((text, idx) => ({
+          index: idx,
+          x: padX + idx * (platW + 18),
+          y: basePlatY - (idx % 2 === 0 ? 0 : 14),
+          w: platW,
+          h: 20,
+          text,
+          color: this.colors[idx],
+          fallVy: 0,
+          falling: false
+        }));
+      }
+
+      setInput(dir, isDown) {
+        if (dir === 'left') this.keys.left = isDown;
+        if (dir === 'right') this.keys.right = isDown;
+        if (dir === 'action' && isDown) this.jump();
+      }
+
+      jump() {
+        if (!this.running) return;
+        if (this.player.onGround) {
+          this.player.vy = -14.2; // Salto amplio que supera cómodamente las plataformas
+          this.player.onGround = false;
+          this.sound.jump();
+        }
+      }
+
+      reveal(correctIdx) {
+        this.revealed = true;
+        this.correctIdx = correctIdx;
+        // Las 3 plataformas incorrectas caen por gravedad
+        this.platforms.forEach((p) => {
+          if (p.index !== correctIdx) {
+            p.falling = true;
+            p.fallVy = 2;
+          }
+        });
+      }
+
+      update() {
+        if (!this.running) return;
+
+        const speed = 5.5;
+        if (this.keys.left) {
+          this.player.vx = -speed;
+          this.player.walkCycle += 0.25;
+        } else if (this.keys.right) {
+          this.player.vx = speed;
+          this.player.walkCycle += 0.25;
+        } else {
+          this.player.vx *= 0.78;
+        }
+
+        const prevBottom = this.player.y;
+        this.player.x += this.player.vx;
+        this.player.vy += 0.48; // Gravedad suave
+        this.player.y += this.player.vy;
+
+        // Límites laterales
+        this.player.x = Math.max(20, Math.min(this.width - 20, this.player.x));
+
+        this.player.onGround = false;
+        let landedPlatform = null;
+
+        // Actualizar plataformas y chequear colisión superior
+        this.platforms.forEach((p) => {
+          if (p.falling) {
+            p.fallVy += 0.45;
+            p.y += p.fallVy;
+          }
+
+          if (
+            !p.falling &&
+            this.player.vy >= 0 &&
+            this.player.x >= p.x - 8 &&
+            this.player.x <= p.x + p.w + 8 &&
+            prevBottom <= p.y + 12 &&
+            this.player.y >= p.y
+          ) {
+            this.player.y = p.y;
+            this.player.vy = 0;
+            this.player.onGround = true;
+            landedPlatform = p.index;
+          }
+        });
+
+        // Si está sobre una plataforma, actualiza su respuesta seleccionada
+        if (landedPlatform !== null && !this.revealed) {
+          if (this.selectedOption !== landedPlatform) {
+            this.selectedOption = landedPlatform;
+            this.onSelect(landedPlatform, true);
+          }
+        }
+
+        // Colisión con el suelo base
+        const floorY = this.height - 28;
+        if (this.player.y >= floorY) {
+          this.player.y = floorY;
+          this.player.vy = 0;
+          this.player.onGround = true;
+        }
+      }
+
+      draw() {
+        const ctx = this.ctx;
+        ctx.clearRect(0, 0, this.width, this.height);
+
+        // Fondo nocturno con cuadrícula sutil
+        ctx.fillStyle = '#090d16';
+        ctx.fillRect(0, 0, this.width, this.height);
+
+        ctx.strokeStyle = 'rgba(99, 102, 241, 0.08)';
+        ctx.lineWidth = 1;
+        for (let x = 0; x < this.width; x += 40) {
+          ctx.beginPath();
+          ctx.moveTo(x, 0);
+          ctx.lineTo(x, this.height);
+          ctx.stroke();
+        }
+        for (let y = 0; y < this.height; y += 40) {
+          ctx.beginPath();
+          ctx.moveTo(0, y);
+          ctx.lineTo(this.width, y);
+          ctx.stroke();
+        }
+
+        // Suelo / Lava si ya se reveló
+        const floorY = this.height - 28;
+        ctx.fillStyle = this.revealed ? '#991b1b' : '#1e293b';
+        ctx.fillRect(0, floorY, this.width, 28);
+        ctx.fillStyle = this.revealed ? '#ef4444' : '#475569';
+        ctx.fillRect(0, floorY, this.width, 4);
+
+        // Dibujar las 4 plataformas
+        this.platforms.forEach((p, idx) => {
+          const isSelected = this.selectedOption === idx;
+          const isCorrect = this.revealed && idx === this.correctIdx;
+
+          ctx.save();
+          // Sombra o resplandor si está seleccionada
+          if (isSelected || isCorrect) {
+            ctx.shadowColor = isCorrect ? '#4ade80' : '#facc15';
+            ctx.shadowBlur = 18;
+          }
+
+          // Cuerpo de la plataforma
+          ctx.fillStyle = p.color;
+          ctx.beginPath();
+          ctx.roundRect(p.x, p.y, p.w, p.h, 8);
+          ctx.fill();
+
+          ctx.lineWidth = isSelected || isCorrect ? 3 : 1.5;
+          ctx.strokeStyle = isCorrect ? '#86efac' : isSelected ? '#fde047' : 'rgba(255,255,255,0.4)';
+          ctx.stroke();
+          ctx.restore();
+
+          // Cartel flotante encima de la plataforma con el texto de la opción
+          const boxH = 54;
+          const boxY = p.y - boxH - 14;
+          ctx.fillStyle = isSelected ? 'rgba(30, 41, 59, 0.96)' : 'rgba(15, 23, 42, 0.85)';
+          ctx.beginPath();
+          ctx.roundRect(p.x, boxY, p.w, boxH, 10);
+          ctx.fill();
+          ctx.strokeStyle = p.color;
+          ctx.lineWidth = isSelected ? 2.5 : 1.5;
+          ctx.stroke();
+
+          // Número de opción
+          ctx.fillStyle = p.color;
+          ctx.font = 'bold 12px Fredoka, sans-serif';
+          ctx.textAlign = 'center';
+          ctx.fillText(`OPCIÓN ${idx + 1}${isSelected ? ' ★ ACTIVA' : ''}`, p.x + p.w / 2, boxY + 17);
+
+          // Texto de la respuesta
+          ctx.fillStyle = '#ffffff';
+          ctx.font = 'bold 13px Inter, sans-serif';
+          this.drawWrappedText(ctx, p.text, p.x + p.w / 2, boxY + 35, p.w - 12, 14);
+        });
+
+        // Dibujar Stickman (Muñeco de palitos animado)
+        this.drawStickman(ctx, this.player.x, this.player.y);
+      }
+
+      drawStickman(ctx, x, bottomY) {
+        ctx.save();
+        ctx.strokeStyle = '#38bdf8';
+        ctx.lineWidth = 4;
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+
+        const swing = Math.sin(this.player.walkCycle) * 8;
+
+        // Piernas
+        ctx.beginPath();
+        ctx.moveTo(x, bottomY - 18);
+        ctx.lineTo(x - 7 + swing, bottomY);
+        ctx.moveTo(x, bottomY - 18);
+        ctx.lineTo(x + 7 - swing, bottomY);
+        ctx.stroke();
+
+        // Torso
+        ctx.beginPath();
+        ctx.moveTo(x, bottomY - 18);
+        ctx.lineTo(x, bottomY - 36);
+        ctx.stroke();
+
+        // Brazos
+        ctx.beginPath();
+        ctx.moveTo(x, bottomY - 32);
+        ctx.lineTo(x - 11 - swing * 0.5, bottomY - 22);
+        ctx.moveTo(x, bottomY - 32);
+        ctx.lineTo(x + 11 + swing * 0.5, bottomY - 22);
+        ctx.stroke();
+
+        // Cabeza
+        ctx.fillStyle = '#f8fafc';
+        ctx.beginPath();
+        ctx.arc(x, bottomY - 45, 9, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+
+        // Cinta ninja roja en la cabeza
+        ctx.strokeStyle = '#f43f5e';
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.moveTo(x - 9, bottomY - 47);
+        ctx.lineTo(x + 9, bottomY - 47);
+        ctx.stroke();
+
+        ctx.restore();
+      }
+
+      drawWrappedText(ctx, text, x, y, maxWidth, lineHeight) {
+        const words = text.split(' ');
+        let line = '';
+        for (let n = 0; n < words.length; n++) {
+          const testLine = line + words[n] + ' ';
+          const metrics = ctx.measureText(testLine);
+          if (metrics.width > maxWidth && n > 0) {
+            ctx.fillText(line.trim(), x, y);
+            line = words[n] + ' ';
+            y += lineHeight;
+          } else {
+            line = testLine;
+          }
+        }
+        ctx.fillText(line.trim(), x, y);
+      }
+
+      stop() {
+        this.running = false;
+      }
+    }
+
+    /**
+     * =========================================================================
+     * CLASE 7: MiniGame3_SpaceDoors (Juego 3: Nave Espacial - Movimiento Libre 4 Direcciones)
+     * El usuario se mueve arriba, abajo, izquierda y derecha sin bloquearse.
+     * La respuesta final se toma de donde esté ubicado cuando se acaba el tiempo.
+     * =========================================================================
+     */
+    class MiniGame3_SpaceDoors {
+      constructor(canvas, onSelectCallback, soundFX) {
+        this.canvas = canvas;
+        this.ctx = canvas.getContext('2d');
+        this.onSelect = onSelectCallback;
+        this.sound = soundFX;
+
+        this.running = false;
+        this.revealed = false;
+        this.selectedOption = 0;
+        this.keys = { left: false, right: false, up: false, down: false };
+        this.colors = ['#E21B3C', '#1368CE', '#D89E00', '#26890C'];
+      }
+
+      start(questionObj) {
+        this.question = questionObj;
+        this.correctIdx = questionObj.correctIndex;
+        this.running = true;
+        this.revealed = false;
+
+        this.resize();
+
+        this.ship = {
+          x: this.width / 2,
+          y: this.height - 65
+        };
+
+        // Estrellas del fondo
+        this.stars = Array.from({ length: 65 }, () => ({
+          x: Math.random() * this.width,
+          y: Math.random() * this.height,
+          size: Math.random() * 2.2 + 0.8,
+          speed: Math.random() * 3 + 1.5
+        }));
+
+        this.gateY = 95;
+        this.selectedOption = Math.min(3, Math.max(0, Math.floor(this.ship.x / (this.width / 4))));
+        this.onSelect(this.selectedOption, true);
+      }
+
+      resize() {
+        const rect = this.canvas.parentElement.getBoundingClientRect();
+        this.width = this.canvas.width = rect.width || 800;
+        this.height = this.canvas.height = rect.height || 400;
+      }
+
+      setInput(dir, isDown) {
+        if (dir === 'left') this.keys.left = isDown;
+        if (dir === 'right') this.keys.right = isDown;
+        if (dir === 'up') this.keys.up = isDown;
+        if (dir === 'down') this.keys.down = isDown;
+      }
+
+      updateAlignedGate() {
+        const gateW = this.width / 4;
+        const idx = Math.min(3, Math.max(0, Math.floor(this.ship.x / gateW)));
+        if (this.selectedOption !== idx && !this.revealed) {
+          this.selectedOption = idx;
+          this.onSelect(idx, true);
+        }
+      }
+
+      reveal(correctIdx) {
+        this.revealed = true;
+        this.correctIdx = correctIdx;
+      }
+
+      update() {
+        if (!this.running) return;
+
+        // Mover fondo estrellado
+        this.stars.forEach((s) => {
+          s.y += s.speed;
+          if (s.y > this.height) {
+            s.y = 0;
+            s.x = Math.random() * this.width;
+          }
+        });
+
+        // Movimiento libre en 4 direcciones (Arriba, Abajo, Izquierda, Derecha)
+        if (!this.revealed) {
+          const speed = 6.0;
+          if (this.keys.left) this.ship.x -= speed;
+          if (this.keys.right) this.ship.x += speed;
+          if (this.keys.up) this.ship.y -= speed;
+          if (this.keys.down) this.ship.y += speed;
+
+          this.ship.x = Math.max(30, Math.min(this.width - 30, this.ship.x));
+          this.ship.y = Math.max(70, Math.min(this.height - 35, this.ship.y));
+          this.updateAlignedGate();
+        }
+      }
+
+      draw() {
+        const ctx = this.ctx;
+        ctx.clearRect(0, 0, this.width, this.height);
+
+        // Espacio profundo
+        ctx.fillStyle = '#040711';
+        ctx.fillRect(0, 0, this.width, this.height);
+
+        // Estrellas
+        ctx.fillStyle = '#e2e8f0';
+        this.stars.forEach((s) => {
+          ctx.beginPath();
+          ctx.arc(s.x, s.y, s.size, 0, Math.PI * 2);
+          ctx.fill();
+        });
+
+        const gateW = this.width / 4;
+
+        // Zona iluminada del sector donde se encuentra la nave actualmente
+        const beamGrad = ctx.createLinearGradient(0, 42, 0, this.height);
+        beamGrad.addColorStop(0, `${this.colors[this.selectedOption]}44`);
+        beamGrad.addColorStop(1, 'transparent');
+        ctx.fillStyle = beamGrad;
+        ctx.fillRect(this.selectedOption * gateW + 6, 42, gateW - 12, this.height - 42);
+
+        // Dibujar las 4 puertas Galaga en la zona superior
+        if (this.question) {
+          this.question.options.forEach((optText, idx) => {
+            const x = idx * gateW;
+            const isAligned = this.selectedOption === idx;
+            const isCorrect = this.revealed && idx === this.correctIdx;
+            const isWrongRevealed = this.revealed && idx !== this.correctIdx;
+
+            ctx.save();
+            if (isWrongRevealed) ctx.globalAlpha = 0.28;
+
+            // Marco del portal luminoso
+            ctx.fillStyle = isCorrect ? '#065f46' : 'rgba(15, 23, 42, 0.9)';
+            ctx.beginPath();
+            ctx.roundRect(x + 8, 42, gateW - 16, 78, 12);
+            ctx.fill();
+
+            ctx.lineWidth = isAligned || isCorrect ? 3.5 : 1.5;
+            ctx.strokeStyle = isCorrect ? '#34d399' : this.colors[idx];
+            ctx.stroke();
+
+            // Barrera láser inferior del portal
+            ctx.strokeStyle = isCorrect ? '#4ade80' : this.colors[idx];
+            ctx.lineWidth = isAligned ? 5 : 3;
+            ctx.beginPath();
+            ctx.moveTo(x + 14, 122);
+            ctx.lineTo(x + gateW - 14, 122);
+            ctx.stroke();
+
+            // Etiqueta del portal
+            ctx.fillStyle = this.colors[idx];
+            ctx.font = 'bold 12px Fredoka, sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText(
+              `PUERTA ${idx + 1} ${isAligned ? '⚡ ACTIVA' : ''}`,
+              x + gateW / 2,
+              62
+            );
+
+            // Respuesta en la puerta
+            ctx.fillStyle = '#ffffff';
+            ctx.font = 'bold 13px Inter, sans-serif';
+            this.drawSimpleWrap(ctx, optText, x + gateW / 2, 84, gateW - 26, 15);
+            ctx.restore();
+          });
+        }
+
+        // Dibujar Nave Espacial Retro estilo Galaga
+        this.drawGalagaShip(ctx, this.ship.x, this.ship.y);
+      }
+
+      drawGalagaShip(ctx, x, y) {
+        ctx.save();
+        ctx.translate(x, y);
+
+        // Propulsor de fuego
+        ctx.fillStyle = '#f97316';
+        ctx.beginPath();
+        ctx.moveTo(-8, 20);
+        ctx.lineTo(0, 32 + Math.random() * 8);
+        ctx.lineTo(8, 20);
+        ctx.closePath();
+        ctx.fill();
+
+        // Alas exteriores
+        ctx.fillStyle = '#e21b3c';
+        ctx.beginPath();
+        ctx.moveTo(-24, 18);
+        ctx.lineTo(-10, -4);
+        ctx.lineTo(10, -4);
+        ctx.lineTo(24, 18);
+        ctx.closePath();
+        ctx.fill();
+
+        // Casco principal blanco/azul
+        ctx.fillStyle = '#f8fafc';
+        ctx.beginPath();
+        ctx.moveTo(0, -24);
+        ctx.lineTo(-14, 18);
+        ctx.lineTo(14, 18);
+        ctx.closePath();
+        ctx.fill();
+
+        // Cabina
+        ctx.fillStyle = '#38bdf8';
+        ctx.beginPath();
+        ctx.arc(0, 2, 5, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.restore();
+      }
+
+      drawSimpleWrap(ctx, text, x, y, maxW, lineH) {
+        const words = text.split(' ');
+        let line = '';
+        for (let i = 0; i < words.length; i++) {
+          const test = line + words[i] + ' ';
+          if (ctx.measureText(test).width > maxW && i > 0) {
+            ctx.fillText(line.trim(), x, y);
+            line = words[i] + ' ';
+            y += lineH;
+          } else {
+            line = test;
+          }
+        }
+        ctx.fillText(line.trim(), x, y);
+      }
+
+      stop() {
+        this.running = false;
+      }
+    }
+
+    /**
+     * =========================================================================
+     * CLASE 8: MiniGame4_Conveyor (Juego 4: Cintas Transportadoras / Carriles)
+     * Las opciones permanecen arriba durante el conteo y solo bajan cuando el
+     * tiempo llega a 0.
+     * =========================================================================
+     */
+    class MiniGame4_Conveyor {
+      constructor(canvas, onSelectCallback, soundFX) {
+        this.canvas = canvas;
+        this.ctx = canvas.getContext('2d');
+        this.onSelect = onSelectCallback;
+        this.sound = soundFX;
+
+        this.running = false;
+        this.revealed = false;
+        this.isDropping = false;
+        this.onDropComplete = null;
+        this.selectedLane = 0;
+        this.beltOffset = 0;
+        this.crateProgress = 0;
+        this.colors = ['#E21B3C', '#1368CE', '#D89E00', '#26890C'];
+
+        // Permitir clic directo sobre el carril en el canvas
+        this.canvas.addEventListener('pointerdown', (e) => {
+          if (!this.running || this.isDropping || this.revealed) return;
+          const rect = this.canvas.getBoundingClientRect();
+          const clickX = e.clientX - rect.left;
+          const lane = Math.min(3, Math.max(0, Math.floor(clickX / (rect.width / 4))));
+          this.selectLane(lane);
+        });
+      }
+
+      start(questionObj) {
+        this.question = questionObj;
+        this.correctIdx = questionObj.correctIndex;
+        this.running = true;
+        this.revealed = false;
+        this.isDropping = false;
+        this.onDropComplete = null;
+        this.crateProgress = 0; // Fijas arriba mientras corre el tiempo
+        this.resize();
+        this.selectLane(0, false);
+      }
+
+      resize() {
+        const rect = this.canvas.parentElement.getBoundingClientRect();
+        this.width = this.canvas.width = rect.width || 800;
+        this.height = this.canvas.height = rect.height || 400;
+      }
+
+      selectLane(laneIdx, playSound = true) {
+        if (this.isDropping || this.revealed) return;
+        this.selectedLane = Math.max(0, Math.min(3, laneIdx));
+        if (playSound) this.sound.select();
+        this.onSelect(this.selectedLane, true);
+      }
+
+      setInput(dir, isDown) {
+        if (!isDown || !this.running || this.isDropping || this.revealed) return;
+        if (dir === 'left') this.selectLane(this.selectedLane - 1);
+        if (dir === 'right') this.selectLane(this.selectedLane + 1);
+      }
+
+      /**
+       * Se invoca cuando el reloj llega a 0: las opciones bajan por las cintas
+       */
+      triggerDropWhenTimeZero(callback) {
+        if (this.isDropping) return;
+        this.isDropping = true;
+        this.onDropComplete = callback;
+      }
+
+      reveal(correctIdx) {
+        this.revealed = true;
+        this.correctIdx = correctIdx;
+      }
+
+      update() {
+        if (!this.running) return;
+
+        // Solo se mueven las cajas hacia abajo cuando el tiempo llega a 0
+        if (this.isDropping && !this.revealed) {
+          this.beltOffset = (this.beltOffset + 4.5) % 28;
+          this.crateProgress += 0.016;
+          if (this.crateProgress >= 1) {
+            this.crateProgress = 1;
+            if (this.onDropComplete) {
+              const cb = this.onDropComplete;
+              this.onDropComplete = null;
+              cb();
+            }
+          }
+        }
+      }
+
+      draw() {
+        const ctx = this.ctx;
+        ctx.clearRect(0, 0, this.width, this.height);
+
+        ctx.fillStyle = '#0b1120';
+        ctx.fillRect(0, 0, this.width, this.height);
+
+        const laneW = this.width / 4;
+        const collectorY = this.height - 62;
+
+        if (this.question) {
+          this.question.options.forEach((optText, idx) => {
+            const x = idx * laneW;
+            const isSelected = this.selectedLane === idx;
+            const isCorrect = this.revealed && idx === this.correctIdx;
+
+            // Pista de la cinta transportadora
+            ctx.fillStyle = isSelected ? 'rgba(30, 41, 59, 0.9)' : 'rgba(15, 23, 42, 0.65)';
+            ctx.fillRect(x + 12, 20, laneW - 24, collectorY - 10);
+
+            // Rodillos de la cinta
+            ctx.strokeStyle = isSelected ? `${this.colors[idx]}88` : 'rgba(148, 163, 184, 0.2)';
+            ctx.lineWidth = 3;
+            for (let y = 30 + this.beltOffset; y < collectorY; y += 28) {
+              ctx.beginPath();
+              ctx.moveTo(x + 18, y);
+              ctx.lineTo(x + laneW - 18, y);
+              ctx.stroke();
+            }
+
+            // Bordes de la cinta
+            ctx.strokeStyle = isCorrect ? '#4ade80' : isSelected ? '#facc15' : this.colors[idx];
+            ctx.lineWidth = isSelected || isCorrect ? 3.5 : 1.5;
+            ctx.strokeRect(x + 12, 20, laneW - 24, collectorY - 10);
+
+            // Caja de respuesta (fija arriba hasta que el tiempo llega a 0)
+            const crateY = 40 + this.crateProgress * (collectorY - 120);
+            ctx.save();
+            if (this.revealed && !isCorrect) ctx.globalAlpha = 0.3;
+
+            ctx.fillStyle = this.colors[idx];
+            ctx.beginPath();
+            ctx.roundRect(x + 20, crateY, laneW - 40, 74, 12);
+            ctx.fill();
+            ctx.strokeStyle = '#ffffff';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+
+            ctx.fillStyle = 'rgba(0,0,0,0.35)';
+            ctx.font = 'bold 11px Fredoka, sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText(`CARRIL ${idx + 1} (Tecla ${idx + 1})`, x + laneW / 2, crateY + 18);
+
+            ctx.fillStyle = '#ffffff';
+            ctx.font = 'bold 13px Inter, sans-serif';
+            this.drawWrap(ctx, optText, x + laneW / 2, crateY + 40, laneW - 52, 15);
+            ctx.restore();
+          });
+        }
+
+        // Línea de meta inferior
+        ctx.strokeStyle = '#f59e0b';
+        ctx.setLineDash([8, 6]);
+        ctx.beginPath();
+        ctx.moveTo(0, collectorY);
+        ctx.lineTo(this.width, collectorY);
+        ctx.stroke();
+        ctx.setLineDash([]);
+
+        // Carrito recolector del jugador en el carril activo
+        const cartX = this.selectedLane * laneW + laneW / 2;
+        ctx.save();
+        ctx.fillStyle = '#f59e0b';
+        ctx.beginPath();
+        ctx.roundRect(cartX - laneW * 0.38, collectorY - 8, laneW * 0.76, 46, 12);
+        ctx.fill();
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 2.5;
+        ctx.stroke();
+
+        ctx.fillStyle = '#0f172a';
+        ctx.font = 'bold 13px Fredoka, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('🛒 COLECTOR ACTIVO', cartX, collectorY + 20);
+        ctx.restore();
+      }
+
+      drawWrap(ctx, text, x, y, maxW, lineH) {
+        const words = text.split(' ');
+        let line = '';
+        for (let i = 0; i < words.length; i++) {
+          const test = line + words[i] + ' ';
+          if (ctx.measureText(test).width > maxW && i > 0) {
+            ctx.fillText(line.trim(), x, y);
+            line = words[i] + ' ';
+            y += lineH;
+          } else {
+            line = test;
+          }
+        }
+        ctx.fillText(line.trim(), x, y);
+      }
+
+      stop() {
+        this.running = false;
+      }
+    }
+
+    /**
+     * =========================================================================
+     * CLASE 9: MiniGame5_Cannon (Juego 5: El Cañón con opción de Restaurar Selección)
+     * =========================================================================
+     */
+    class MiniGame5_Cannon {
+      constructor(canvas, onSelectCallback, soundFX, onLockChangeCallback) {
+        this.canvas = canvas;
+        this.ctx = canvas.getContext('2d');
+        this.onSelect = onSelectCallback;
+        this.sound = soundFX;
+        this.onLockChange = onLockChangeCallback;
+
+        this.running = false;
+        this.revealed = false;
+        this.locked = false;
+        this.selectedOption = null;
+        this.angle = -Math.PI / 2;
+        this.keys = { left: false, right: false };
+        this.projectiles = [];
+        this.particles = [];
+        this.timeTick = 0;
+        this.colors = ['#E21B3C', '#1368CE', '#D89E00', '#26890C'];
+
+        // Apuntar y disparar con mouse/touch en el canvas
+        this.canvas.addEventListener('pointermove', (e) => {
+          if (!this.running || this.locked || this.revealed) return;
+          const rect = this.canvas.getBoundingClientRect();
+          const mx = e.clientX - rect.left;
+          const my = e.clientY - rect.top;
+          const cx = this.width / 2;
+          const cy = this.height - 28;
+          const ang = Math.atan2(my - cy, mx - cx);
+          if (ang < -0.2 && ang > -Math.PI + 0.2) {
+            this.angle = ang;
+          }
+        });
+
+        this.canvas.addEventListener('pointerdown', (e) => {
+          if (!this.running || this.locked || this.revealed) return;
+          const rect = this.canvas.getBoundingClientRect();
+          const mx = e.clientX - rect.left;
+          const my = e.clientY - rect.top;
+          const cx = this.width / 2;
+          const cy = this.height - 28;
+          const ang = Math.atan2(my - cy, mx - cx);
+          if (ang < -0.2 && ang > -Math.PI + 0.2) {
+            this.angle = ang;
+            this.shoot();
+          }
+        });
+      }
+
+      start(questionObj) {
+        this.question = questionObj;
+        this.correctIdx = questionObj.correctIndex;
+        this.running = true;
+        this.revealed = false;
+        this.locked = false;
+        this.selectedOption = null;
+        this.angle = -Math.PI / 2;
+        this.projectiles = [];
+        this.particles = [];
+        this.timeTick = 0;
+
+        this.resize();
+        this.setupTargets();
+        if (this.onLockChange) this.onLockChange(false);
+      }
+
+      /**
+       * Permite al jugador restaurar su disparo si cambió de opinión antes de que acabe el tiempo
+       */
+      restoreSelection() {
+        if (this.revealed) return;
+        this.locked = false;
+        this.selectedOption = null;
+        this.projectiles = [];
+        if (this.targets) {
+          this.targets.forEach((t) => (t.hit = false));
+        }
+        if (this.onLockChange) this.onLockChange(false);
+        this.onSelect(null, false);
+      }
+
+      resize() {
+        const rect = this.canvas.parentElement.getBoundingClientRect();
+        this.width = this.canvas.width = rect.width || 800;
+        this.height = this.canvas.height = rect.height || 400;
+        this.setupTargets();
+      }
+
+      setupTargets() {
+        if (!this.question) return;
+        const slotW = this.width / 4;
+        this.targets = this.question.options.map((text, idx) => ({
+          index: idx,
+          baseX: idx * slotW + slotW / 2,
+          x: idx * slotW + slotW / 2,
+          y: 95 + (idx % 2 === 0 ? 0 : 22),
+          r: Math.min(54, slotW * 0.38),
+          text,
+          color: this.colors[idx],
+          hit: false
+        }));
+      }
+
+      setInput(dir, isDown) {
+        if (dir === 'left') this.keys.left = isDown;
+        if (dir === 'right') this.keys.right = isDown;
+        if (dir === 'action' && isDown) this.shoot();
+      }
+
+      shoot() {
+        if (!this.running || this.locked || this.revealed) return;
+        this.sound.shoot();
+        const speed = 13;
+        const cx = this.width / 2;
+        const cy = this.height - 32;
+        this.projectiles.push({
+          x: cx + Math.cos(this.angle) * 42,
+          y: cy + Math.sin(this.angle) * 42,
+          vx: Math.cos(this.angle) * speed,
+          vy: Math.sin(this.angle) * speed
+        });
+      }
+
+      spawnParticles(x, y, color) {
+        for (let i = 0; i < 24; i++) {
+          const ang = Math.random() * Math.PI * 2;
+          const spd = Math.random() * 5 + 1.5;
+          this.particles.push({
+            x,
+            y,
+            vx: Math.cos(ang) * spd,
+            vy: Math.sin(ang) * spd,
+            life: 1,
+            color
+          });
+        }
+      }
+
+      reveal(correctIdx) {
+        this.revealed = true;
+        this.correctIdx = correctIdx;
+        if (this.onLockChange) this.onLockChange(false);
+      }
+
+      update() {
+        if (!this.running) return;
+        this.timeTick += 0.03;
+
+        // Rotar cañón con teclado
+        if (!this.locked && !this.revealed) {
+          if (this.keys.left) this.angle -= 0.035;
+          if (this.keys.right) this.angle += 0.035;
+          this.angle = Math.max(-Math.PI + 0.22, Math.min(-0.22, this.angle));
+        }
+
+        // Oscilación horizontal suave de los 4 globos/dianas
+        if (this.targets) {
+          this.targets.forEach((t, idx) => {
+            t.x = t.baseX + Math.sin(this.timeTick + idx * 1.3) * 18;
+          });
+        }
+
+        // Actualizar proyectiles y colisiones con los globos
+        this.projectiles.forEach((p) => {
+          p.x += p.vx;
+          p.y += p.vy;
+
+          if (!this.locked && this.targets) {
+            this.targets.forEach((t) => {
+              const dist = Math.hypot(p.x - t.x, p.y - t.y);
+              if (dist <= t.r + 8) {
+                t.hit = true;
+                this.locked = true;
+                this.selectedOption = t.index;
+                this.spawnParticles(t.x, t.y, t.color);
+                this.sound.select();
+                if (this.onLockChange) this.onLockChange(true);
+                this.onSelect(t.index, true);
+              }
+            });
+          }
+        });
+
+        this.projectiles = this.projectiles.filter(
+          (p) => p.x > 0 && p.x < this.width && p.y > 0 && p.y < this.height && !this.locked
+        );
+
+        // Actualizar partículas
+        this.particles.forEach((pt) => {
+          pt.x += pt.vx;
+          pt.y += pt.vy;
+          pt.life -= 0.03;
+        });
+        this.particles = this.particles.filter((pt) => pt.life > 0);
+      }
+
+      draw() {
+        const ctx = this.ctx;
+        ctx.clearRect(0, 0, this.width, this.height);
+
+        // Cielo arcade
+        const grad = ctx.createLinearGradient(0, 0, 0, this.height);
+        grad.addColorStop(0, '#0f172a');
+        grad.addColorStop(1, '#1e1b4b');
+        ctx.fillStyle = grad;
+        ctx.fillRect(0, 0, this.width, this.height);
+
+        const cx = this.width / 2;
+        const cy = this.height - 26;
+
+        // Línea láser de puntería
+        if (!this.locked && !this.revealed) {
+          ctx.save();
+          ctx.strokeStyle = 'rgba(250, 204, 21, 0.45)';
+          ctx.setLineDash([6, 6]);
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.moveTo(cx, cy);
+          ctx.lineTo(cx + Math.cos(this.angle) * 450, cy + Math.sin(this.angle) * 450);
+          ctx.stroke();
+          ctx.restore();
+        }
+
+        // Dibujar los 4 globos/dianas
+        if (this.targets) {
+          this.targets.forEach((t, idx) => {
+            const isSelected = this.selectedOption === idx;
+            const isCorrect = this.revealed && idx === this.correctIdx;
+
+            ctx.save();
+            if (this.revealed && !isCorrect) ctx.globalAlpha = 0.28;
+
+            // Cuerda/canasta del globo
+            ctx.strokeStyle = '#cbd5e1';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(t.x - 10, t.y + t.r - 4);
+            ctx.lineTo(t.x - 6, t.y + t.r + 14);
+            ctx.moveTo(t.x + 10, t.y + t.r - 4);
+            ctx.lineTo(t.x + 6, t.y + t.r + 14);
+            ctx.stroke();
+
+            ctx.fillStyle = '#78350f';
+            ctx.fillRect(t.x - 10, t.y + t.r + 14, 20, 12);
+
+            // Globo principal
+            ctx.fillStyle = t.color;
+            ctx.beginPath();
+            ctx.arc(t.x, t.y, t.r, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.lineWidth = isSelected || isCorrect ? 4 : 2;
+            ctx.strokeStyle = isCorrect ? '#4ade80' : isSelected ? '#fde047' : '#ffffff';
+            ctx.stroke();
+
+            // Texto en el globo
+            ctx.fillStyle = '#ffffff';
+            ctx.font = 'bold 11px Fredoka, sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText(
+              `DIANA ${idx + 1} ${isSelected ? '🎯' : ''}`,
+              t.x,
+              t.y - t.r * 0.42
+            );
+
+            ctx.font = 'bold 12px Inter, sans-serif';
+            this.drawBalloonText(ctx, t.text, t.x, t.y - 4, t.r * 1.75, 14);
+
+            ctx.restore();
+          });
+        }
+
+        // Proyectiles
+        ctx.fillStyle = '#facc15';
+        this.projectiles.forEach((p) => {
+          ctx.beginPath();
+          ctx.arc(p.x, p.y, 7, 0, Math.PI * 2);
+          ctx.fill();
+        });
+
+        // Partículas de impacto
+        this.particles.forEach((pt) => {
+          ctx.save();
+          ctx.globalAlpha = Math.max(0, pt.life);
+          ctx.fillStyle = pt.color;
+          ctx.beginPath();
+          ctx.arc(pt.x, pt.y, 4, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.restore();
+        });
+
+        // Dibujar Cañón en la base central
+        ctx.save();
+        ctx.translate(cx, cy);
+        ctx.rotate(this.angle);
+        ctx.fillStyle = '#94a3b8';
+        ctx.beginPath();
+        ctx.roundRect(0, -11, 48, 22, 6);
+        ctx.fill();
+        ctx.strokeStyle = '#f8fafc';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+        ctx.restore();
+
+        // Base semiesférica del cañón
+        ctx.fillStyle = '#f59e0b';
+        ctx.beginPath();
+        ctx.arc(cx, cy + 4, 24, Math.PI, 0);
+        ctx.fill();
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+      }
+
+      drawBalloonText(ctx, text, x, y, maxW, lineH) {
+        const words = text.split(' ');
+        let line = '';
+        for (let i = 0; i < words.length; i++) {
+          const test = line + words[i] + ' ';
+          if (ctx.measureText(test).width > maxW && i > 0) {
+            ctx.fillText(line.trim(), x, y);
+            line = words[i] + ' ';
+            y += lineH;
+          } else {
+            line = test;
+          }
+        }
+        ctx.fillText(line.trim(), x, y);
+      }
+
+      stop() {
+        this.running = false;
+      }
+    }
+
+    /**
+     * =========================================================================
+     * CLASE 10: AppController (Controlador Principal de la SPA y Orquestador)
+     * Gestiona login simple, sala de espera (máx 50), rol AdminEdisonGameQuiz,
+     * pantalla intermedia con Top 10 entre juegos y Podio Final.
+     * =========================================================================
+     */
+    class AppController {
+      constructor() {
+        this.ADMIN_SECRET_NAME = 'AdminEdisonGameQuiz';
+
+        this.sound = new SoundFX();
+        this.scoreSystem = new ScoreSystem();
+        this.quizData = new QuizDataManager();
+        this.sync = new SyncManager((msg) => this.handleSyncMessage(msg));
+
+        this.player = {
+          id: 'p_' + Math.random().toString(36).substring(2, 9),
+          name: '',
+          isAdmin: false
+        };
+
+        this.gameStarted = false;
+        this.currentRound = 0; // 0 a 4 (5 Mini-Juegos)
+        this.roundDurationSec = 30;
+        this.timeLeftSec = 30;
+        this.roundStartTime = 0;
+        this.selectedAnswerIndex = null;
+        this.hasAnsweredCurrentRound = false;
+        this.roundEvaluated = false;
+        this.timerInterval = null;
+        this.editorActiveTab = 0;
+
+        this.initMiniGames();
+        this.bindEvents();
+        this.startAnimationLoop();
+      }
+
+      initMiniGames() {
+        const containerGame1 = document.getElementById('containerGame1');
+        const canvas = document.getElementById('gameCanvas');
+        const btnRestoreShot = document.getElementById('btnRestoreShot');
+
+        this.game1 = new MiniGame1_Kahoot(containerGame1, (idx) => this.onPlayerSelectOption(idx, true));
+        this.game2 = new MiniGame2_Platformer(canvas, (idx, locked) => this.onPlayerSelectOption(idx, locked), this.sound);
+        this.game3 = new MiniGame3_SpaceDoors(canvas, (idx, locked) => this.onPlayerSelectOption(idx, locked), this.sound);
+        this.game4 = new MiniGame4_Conveyor(canvas, (idx, locked) => this.onPlayerSelectOption(idx, locked), this.sound);
+        this.game5 = new MiniGame5_Cannon(
+          canvas,
+          (idx, locked) => this.onPlayerSelectOption(idx, locked),
+          this.sound,
+          (isLocked) => {
+            if (isLocked && !this.roundEvaluated) {
+              btnRestoreShot.classList.remove('hidden');
+              btnRestoreShot.classList.add('flex');
+            } else {
+              btnRestoreShot.classList.add('hidden');
+              btnRestoreShot.classList.remove('flex');
+            }
+          }
+        );
+
+        this.activeCanvasGame = null;
+
+        window.addEventListener('resize', () => {
+          if (this.activeCanvasGame) this.activeCanvasGame.resize();
+        });
+      }
+
+      bindEvents() {
+        // Login Form Simple
+        const loginForm = document.getElementById('loginForm');
+        const inputName = document.getElementById('inputPlayerName');
+
+        loginForm.addEventListener('submit', (e) => {
+          e.preventDefault();
+          const rawName = inputName.value.trim();
+          if (!rawName) return;
+          this.login(rawName);
+        });
+
+        // Botón Sonido
+        document.getElementById('btnToggleMute').addEventListener('click', () => {
+          const muted = this.sound.toggleMute();
+          const icon = document.getElementById('iconSound');
+          icon.className = muted ? 'ph-fill ph-speaker-slash text-lg text-rose-400' : 'ph-fill ph-speaker-high text-lg';
+          this.showToast(muted ? 'Audio silenciado' : 'Efectos de sonido activados');
+        });
+
+        // Controles exclusivos del Administrador
+        document.getElementById('adminTimeSelect').addEventListener('change', (e) => {
+          if (!this.player.isAdmin) return;
+          this.roundDurationSec = parseInt(e.target.value, 10) || 30;
+          this.sync.setSessionState({ duration: this.roundDurationSec });
+          this.showToast(`Tiempo por pregunta ajustado a ${this.roundDurationSec}s`);
+          this.sync.broadcast('ADMIN_SET_TIME', { duration: this.roundDurationSec });
+        });
+
+        document.getElementById('btnLobbyStartQuiz').addEventListener('click', () => {
+          if (!this.player.isAdmin) return;
+          this.adminStartQuiz();
+        });
+
+        document.getElementById('btnLobbyEditQuestions').addEventListener('click', () => {
+          if (!this.player.isAdmin) return;
+          this.openQuestionEditor(0);
+        });
+
+        document.getElementById('btnAdminNext').addEventListener('click', () => {
+          if (!this.player.isAdmin) return;
+          this.handleAdminAdvanceAction();
+        });
+
+        document.getElementById('btnIntermissionNextAdmin').addEventListener('click', () => {
+          if (!this.player.isAdmin) return;
+          this.handleAdminAdvanceAction();
+        });
+
+        // Botón Restaurar Selección en el Juego 5 (Cañón)
+        document.getElementById('btnRestoreShot').addEventListener('click', () => {
+          if (this.currentRound === 4 && !this.roundEvaluated) {
+            this.game5.restoreSelection();
+            this.showToast('Disparo restaurado. ¡Apunta y dispara de nuevo!');
+          }
+        });
+
+        // Editor de Preguntas (Modal exclusivo Admin)
+        document.getElementById('btnOpenQuestionEditor').addEventListener('click', () => {
+          if (!this.player.isAdmin) return;
+          this.openQuestionEditor(this.currentRound < 5 ? this.currentRound : 0);
+        });
+        document.getElementById('btnCloseEditorModal').addEventListener('click', () => {
+          this.saveCurrentTabToMemory();
+          document.getElementById('modalQuestionEditor').classList.add('hidden');
+        });
+        document.getElementById('btnSaveQuestions').addEventListener('click', () => {
+          if (!this.player.isAdmin) return;
+          this.saveCurrentTabToMemory();
+          this.quizData.saveQuestions(this.quizData.questions);
+          this.sync.broadcast('QUESTIONS_UPDATED', { questions: this.quizData.questions });
+          document.getElementById('modalQuestionEditor').classList.add('hidden');
+          if (this.gameStarted && this.currentRound < 5 && !this.roundEvaluated) {
+            this.loadRound(this.currentRound);
+          }
+          this.showToast('¡Preguntas guardadas y sincronizadas!');
+        });
+
+        // Controles de Teclado para los Mini-Juegos Canvas
+        window.addEventListener('keydown', (e) => {
+          if (!this.activeCanvasGame) return;
+          if (e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A') {
+            this.activeCanvasGame.setInput('left', true);
+          } else if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') {
+            this.activeCanvasGame.setInput('right', true);
+          } else if (e.key === 'ArrowUp' || e.key === 'w' || e.key === 'W') {
+            if (document.activeElement.tagName !== 'INPUT') {
+              e.preventDefault();
+              if (this.currentRound === 2) {
+                this.activeCanvasGame.setInput('up', true);
+              } else {
+                this.activeCanvasGame.setInput('action', true);
+              }
+            }
+          } else if (e.key === 'ArrowDown' || e.key === 's' || e.key === 'S') {
+            if (document.activeElement.tagName !== 'INPUT' && this.currentRound === 2) {
+              e.preventDefault();
+              this.activeCanvasGame.setInput('down', true);
+            }
+          } else if (e.key === ' ') {
+            if (document.activeElement.tagName !== 'INPUT') {
+              e.preventDefault();
+              this.activeCanvasGame.setInput('action', true);
+            }
+          } else if (['1', '2', '3', '4'].includes(e.key) && this.currentRound === 3) {
+            this.game4.selectLane(parseInt(e.key, 10) - 1);
+          }
+        });
+
+        window.addEventListener('keyup', (e) => {
+          if (!this.activeCanvasGame) return;
+          if (e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A') {
+            this.activeCanvasGame.setInput('left', false);
+          } else if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') {
+            this.activeCanvasGame.setInput('right', false);
+          } else if (e.key === 'ArrowUp' || e.key === 'w' || e.key === 'W') {
+            this.activeCanvasGame.setInput('up', false);
+          } else if (e.key === 'ArrowDown' || e.key === 's' || e.key === 'S') {
+            this.activeCanvasGame.setInput('down', false);
+          }
+        });
+
+        // Controles táctiles / botones en pantalla
+        const bindHoldBtn = (id, dir) => {
+          const btn = document.getElementById(id);
+          if (!btn) return;
+          btn.addEventListener('pointerdown', (e) => {
+            e.preventDefault();
+            if (this.activeCanvasGame) this.activeCanvasGame.setInput(dir, true);
+          });
+          btn.addEventListener('pointerup', () => {
+            if (this.activeCanvasGame) this.activeCanvasGame.setInput(dir, false);
+          });
+          btn.addEventListener('pointerleave', () => {
+            if (this.activeCanvasGame) this.activeCanvasGame.setInput(dir, false);
+          });
+        };
+
+        bindHoldBtn('btnTouchLeft', 'left');
+        bindHoldBtn('btnTouchRight', 'right');
+        bindHoldBtn('btnTouchUp', 'up');
+        bindHoldBtn('btnTouchDown', 'down');
+
+        document.getElementById('btnTouchAction').addEventListener('pointerdown', (e) => {
+          e.preventDefault();
+          if (this.activeCanvasGame) this.activeCanvasGame.setInput('action', true);
+        });
+
+        // Botones de carril 1-4 para Juego 4
+        document.querySelectorAll('.lane-btn').forEach((btn) => {
+          btn.addEventListener('click', () => {
+            const lane = parseInt(btn.dataset.lane, 10);
+            this.game4.selectLane(lane);
+          });
+        });
+
+        // Botón del Podio Final (Exclusivo Admin)
+        document.getElementById('btnPlayAgain').addEventListener('click', () => {
+          if (!this.player.isAdmin) return;
+          this.sync.setSessionState({ status: 'WAITING', currentRound: 0 });
+          this.sync.resetAllPlayersAnsweredStatus();
+          this.restartToWaitingRoom();
+          this.sync.broadcast('ADMIN_RESTART', {});
+        });
+      }
+
+      /**
+       * Ingreso a la plataforma:
+       * - Si es AdminEdisonGameQuiz, muestra los controles de Admin.
+       * - Si es jugador normal, verifica el cupo máximo de 50 personas y lo lleva a la Sala de Espera.
+       */
+      login(name) {
+        this.sound.init();
+        const isAdminKey = name === this.ADMIN_SECRET_NAME;
+        const loginErr = document.getElementById('loginErrorMsg');
+        loginErr.classList.add('hidden');
+
+        if (!isAdminKey) {
+          const currentPlayers = this.sync.getAllPlayers();
+          const alreadyExists = currentPlayers.some((p) => p.name.toLowerCase() === name.toLowerCase());
+          if (!alreadyExists && currentPlayers.length >= this.sync.MAX_PLAYERS) {
+            loginErr.textContent = 'La sala de espera ha alcanzado su capacidad máxima (50 jugadores).';
+            loginErr.classList.remove('hidden');
+            this.sound.wrong();
+            return;
+          }
+        }
+
+        this.sound.select();
+        this.player.name = name;
+        this.player.isAdmin = isAdminKey;
+
+        // Actualizar HUD
+        document.getElementById('hudPlayerName').textContent = name;
+        document.getElementById('hudAvatar').textContent = name.charAt(0).toUpperCase();
+        const roleTag = document.getElementById('hudRoleTag');
+
+        const adminBar = document.getElementById('adminControlBar');
+        const waitingAdminActions = document.getElementById('waitingAdminActions');
+        const waitingSpinner = document.getElementById('waitingPlayerSpinner');
+        const waitingStatusText = document.getElementById('waitingRoomStatusText');
+
+        if (isAdminKey) {
+          roleTag.textContent = 'ADMIN';
+          roleTag.className = 'text-[10px] uppercase tracking-wider px-2 py-0.5 rounded bg-amber-500/30 text-amber-300 border border-amber-400/40 font-bold';
+          adminBar.classList.remove('hidden');
+          waitingAdminActions.classList.remove('hidden');
+          waitingSpinner.classList.add('hidden');
+          waitingStatusText.textContent = 'Panel de Sala de Espera. Presiona "Iniciar Quiz Ahora" cuando los jugadores estén listos.';
+          this.sync.setSessionState({ status: 'WAITING', currentRound: 0, duration: this.roundDurationSec });
+        } else {
+          roleTag.textContent = 'JUGADOR';
+          roleTag.className = 'text-[10px] uppercase tracking-wider px-2 py-0.5 rounded bg-purple-500/30 text-purple-200 border border-purple-400/30 font-semibold';
+          // Usuario normal NO ve nada del admin
+          adminBar.classList.add('hidden');
+          waitingAdminActions.classList.add('hidden');
+          waitingSpinner.classList.remove('hidden');
+          waitingStatusText.textContent = 'Esperando a que el Administrador inicie el quiz...';
+        }
+
+        this.scoreSystem.reset();
+        this.updateHudScoreAndStreak();
+        this.syncPlayerState();
+
+        // Mostrar Sala de Espera
+        document.getElementById('screenLogin').classList.add('hidden');
+        document.getElementById('screenWaitingRoom').classList.remove('hidden');
+        this.renderWaitingRoomUI();
+
+        // Si un jugador entra y el Admin ya había iniciado la partida, sincronizarlo a la ronda activa
+        const sessionState = this.sync.getSessionState();
+        if (!isAdminKey && sessionState.status === 'IN_GAME') {
+          this.roundDurationSec = sessionState.duration || 30;
+          this.startQuizSession(sessionState.currentRound || 0);
+        }
+      }
+
+      renderWaitingRoomUI() {
+        const players = this.sync.getAllPlayers();
+        const countText = `${players.length} / ${this.sync.MAX_PLAYERS}`;
+        document.getElementById('waitingRoomCount').textContent = countText;
+        document.getElementById('adminBarPlayerCount').textContent = countText;
+
+        const grid = document.getElementById('waitingPlayersGrid');
+        if (players.length === 0) {
+          grid.innerHTML = `<span class="text-xs text-slate-500 py-4">Aún no hay jugadores conectados en la sala...</span>`;
+        } else {
+          grid.innerHTML = players
+            .map(
+              (p) => `
+              <div class="px-3.5 py-1.5 rounded-xl bg-slate-800 border border-white/10 text-xs sm:text-sm font-bold text-white flex items-center gap-2 shadow">
+                <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
+                <span>${p.name}</span>
+              </div>
+            `
+            )
+            .join('');
+        }
+        this.updateLiveCountersUI();
+      }
+
+      /**
+       * Actualiza el contador de jugadores actuales y cuántos ya respondieron (ej. 10/20)
+       */
+      updateLiveCountersUI() {
+        const players = this.sync.getAllPlayers();
+        const totalPlayers = players.length;
+        const answeredCount = players.filter((p) => p.answeredRound === this.currentRound && p.hasAnswered).length;
+
+        document.getElementById('adminBarPlayerCount').textContent = `${totalPlayers}/${this.sync.MAX_PLAYERS}`;
+        document.getElementById('hudActivePlayersCount').textContent = `${totalPlayers}`;
+        document.getElementById('hudAnsweredRatio').textContent = `${answeredCount}/${totalPlayers}`;
+      }
+
+      adminStartQuiz() {
+        this.sync.resetAllPlayersAnsweredStatus();
+        this.sync.setSessionState({ status: 'IN_GAME', currentRound: 0, duration: this.roundDurationSec });
+        this.startQuizSession(0);
+        this.sync.broadcast('ADMIN_START_QUIZ', { duration: this.roundDurationSec });
+      }
+
+      startQuizSession(startRound = 0) {
+        this.gameStarted = true;
+        document.getElementById('screenWaitingRoom').classList.add('hidden');
+        document.getElementById('screenRoundResults').classList.add('hidden');
+        document.getElementById('screenPodium').classList.add('hidden');
+        document.getElementById('playerHudBar').classList.remove('hidden');
+        document.getElementById('screenGame').classList.remove('hidden');
+        this.loadRound(startRound);
+      }
+
+      handleAdminAdvanceAction() {
+        if (!this.gameStarted) {
+          this.adminStartQuiz();
+          return;
+        }
+        if (!this.roundEvaluated) {
+          // Si la ronda sigue corriendo, el Admin puede finalizar el tiempo y evaluar
+          this.triggerTimeZeroSequence();
+          this.sync.broadcast('ADMIN_REVEAL', { round: this.currentRound });
+          return;
+        }
+        // Si ya estamos viendo los resultados de la ronda + Top 10, avanzar al siguiente juego
+        this.advanceToNextRound();
+        this.sync.broadcast('ADMIN_NEXT_ROUND', { nextRound: this.currentRound });
+      }
+
+      /**
+       * Carga una de las 5 rondas (0 a 4)
+       */
+      loadRound(roundIdx) {
+        this.currentRound = roundIdx;
+        this.roundEvaluated = false;
+        this.selectedAnswerIndex = null;
+        this.hasAnsweredCurrentRound = false;
+
+        if (this.activeCanvasGame) {
+          this.activeCanvasGame.stop();
+          this.activeCanvasGame = null;
+        }
+
+        document.getElementById('screenRoundResults').classList.add('hidden');
+        document.getElementById('screenGame').classList.remove('hidden');
+
+        const qObj = this.quizData.questions[roundIdx];
+        const gameIcons = [
+          'ph-squares-four',
+          'ph-person-simple-run',
+          'ph-rocket-launch',
+          'ph-conveyor-belt',
+          'ph-target'
+        ];
+
+        // Actualizar Cabecera
+        document.getElementById('hudGameTitle').textContent = qObj.gameTitle;
+        document.getElementById('badgeRoundNumber').textContent = `RONDA ${roundIdx + 1}/5`;
+        document.getElementById('badgeMiniGameType').innerHTML = `<i class="ph-fill ${gameIcons[roundIdx]}"></i> ${qObj.gameTitle}`;
+        document.getElementById('questionHeading').textContent = qObj.question;
+
+        const statusChip = document.getElementById('roundStatusChip');
+        statusChip.textContent = 'En curso - ¡Selecciona tu respuesta!';
+        statusChip.className = 'px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-400/30';
+
+        document.getElementById('btnAdminNextLabel').textContent = 'Evaluar Ronda Ahora';
+
+        // Configurar vista DOM (Juego 1) vs Canvas 2D (Juegos 2, 3, 4, 5)
+        const containerGame1 = document.getElementById('containerGame1');
+        const containerCanvas = document.getElementById('containerCanvasGames');
+        const laneQuickBtns = document.getElementById('laneQuickButtons');
+        const btnTouchAction = document.getElementById('btnTouchAction');
+        const actionBtnText = document.getElementById('btnTouchActionText');
+        const btnTouchUp = document.getElementById('btnTouchUp');
+        const btnTouchDown = document.getElementById('btnTouchDown');
+        const btnRestoreShot = document.getElementById('btnRestoreShot');
+        const topHint = document.getElementById('canvasTopHint');
+
+        btnTouchUp.classList.add('hidden');
+        btnTouchUp.classList.remove('flex');
+        btnTouchDown.classList.add('hidden');
+        btnTouchDown.classList.remove('flex');
+        btnRestoreShot.classList.add('hidden');
+        btnRestoreShot.classList.remove('flex');
+        btnTouchAction.classList.remove('hidden');
+
+        if (roundIdx === 0) {
+          containerGame1.classList.remove('hidden');
+          containerCanvas.classList.add('hidden');
+          this.game1.start(qObj);
+        } else {
+          containerGame1.classList.add('hidden');
+          containerCanvas.classList.remove('hidden');
+          laneQuickBtns.classList.add('hidden');
+
+          if (roundIdx === 1) {
+            this.activeCanvasGame = this.game2;
+            actionBtnText.textContent = 'SALTAR (ESPACIO / ↑)';
+            topHint.textContent = '🏃 Salta y quédate sobre la plataforma con la respuesta correcta';
+          } else if (roundIdx === 2) {
+            this.activeCanvasGame = this.game3;
+            btnTouchUp.classList.remove('hidden');
+            btnTouchUp.classList.add('flex');
+            btnTouchDown.classList.remove('hidden');
+            btnTouchDown.classList.add('flex');
+            btnTouchAction.classList.add('hidden');
+            topHint.textContent = '🚀 Muévete libremente (↑ ↓ ← →). Se tomará la puerta donde estés al acabar el tiempo';
+          } else if (roundIdx === 3) {
+            this.activeCanvasGame = this.game4;
+            laneQuickBtns.classList.remove('hidden');
+            laneQuickBtns.classList.add('flex');
+            btnTouchAction.classList.add('hidden');
+            topHint.textContent = '⚙️ Elige tu carril (1-4 o flechas). Las opciones bajarán cuando el tiempo llegue a 0';
+          } else if (roundIdx === 4) {
+            this.activeCanvasGame = this.game5;
+            actionBtnText.textContent = 'DISPARAR CAÑÓN (ESPACIO)';
+            topHint.textContent = '🎯 Apunta y dispara al globo correcto. Puedes restaurar tu tiro si cambias de opinión';
+          }
+
+          this.activeCanvasGame.start(qObj);
+        }
+
+        this.syncPlayerState();
+        this.updateLiveCountersUI();
+        this.startRoundTimer();
+      }
+
+      startRoundTimer() {
+        clearInterval(this.timerInterval);
+        this.timeLeftSec = this.roundDurationSec;
+        this.roundStartTime = performance.now();
+
+        this.updateTimerUI();
+
+        this.timerInterval = setInterval(() => {
+          if (this.roundEvaluated) return;
+          const elapsed = (performance.now() - this.roundStartTime) / 1000;
+          this.timeLeftSec = Math.max(0, this.roundDurationSec - elapsed);
+          this.updateTimerUI();
+
+          if (this.timeLeftSec <= 0) {
+            clearInterval(this.timerInterval);
+            this.triggerTimeZeroSequence();
+          }
+        }, 100);
+      }
+
+      /**
+       * Cuando el tiempo llega a 0:
+       * En el Juego 4 (Cintas), primero bajan las opciones por la cinta y al llegar abajo se evalúa.
+       * En los demás juegos, se evalúa de inmediato.
+       */
+      triggerTimeZeroSequence() {
+        if (this.roundEvaluated) return;
+        clearInterval(this.timerInterval);
+        this.timeLeftSec = 0;
+        this.updateTimerUI();
+
+        if (this.currentRound === 3 && this.activeCanvasGame === this.game4) {
+          const statusChip = document.getElementById('roundStatusChip');
+          statusChip.textContent = '¡Tiempo agotado! Bajando respuestas...';
+          this.game4.triggerDropWhenTimeZero(() => {
+            this.evaluateCurrentRound();
+          });
+        } else {
+          this.evaluateCurrentRound();
+        }
+      }
+
+      updateTimerUI() {
+        const timerNum = document.getElementById('timerNumber');
+        const bar = document.getElementById('timerProgressBar');
+        timerNum.textContent = `${Math.ceil(this.timeLeftSec)}s`;
+        const pct = Math.max(0, (this.timeLeftSec / this.roundDurationSec) * 100);
+        bar.style.width = `${pct}%`;
+      }
+
+      /**
+       * Registra la opción elegida o restaurada por el jugador y actualiza el contador X/Y
+       */
+      onPlayerSelectOption(optionIdx, hasAnswered = true) {
+        if (this.roundEvaluated) return;
+        this.selectedAnswerIndex = optionIdx;
+        this.hasAnsweredCurrentRound = optionIdx !== null && hasAnswered;
+
+        const statusChip = document.getElementById('roundStatusChip');
+        if (optionIdx === null) {
+          statusChip.textContent = 'Selección restaurada - ¡Elige de nuevo!';
+          statusChip.className = 'px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-500/20 text-amber-300 border border-amber-400/40';
+        } else {
+          statusChip.textContent = `Opción ${optionIdx + 1} seleccionada`;
+          statusChip.className = 'px-2.5 py-0.5 rounded-full text-xs font-bold bg-indigo-500/20 text-indigo-200 border border-indigo-400/40';
+        }
+
+        this.syncPlayerState();
+        this.updateLiveCountersUI();
+      }
+
+      /**
+       * Revela la respuesta correcta en el juego activo, calcula puntos/racha x1.5 y muestra
+       * la pantalla intermedia con el Top 10 de jugadores.
+       */
+      evaluateCurrentRound() {
+        if (this.roundEvaluated) return;
+        this.roundEvaluated = true;
+        clearInterval(this.timerInterval);
+
+        const qObj = this.quizData.questions[this.currentRound];
+        const correctIdx = qObj.correctIndex;
+
+        if (this.currentRound === 0) {
+          this.game1.reveal(correctIdx);
+        } else if (this.activeCanvasGame) {
+          this.activeCanvasGame.reveal(correctIdx);
+        }
+
+        const isCorrect = this.selectedAnswerIndex === correctIdx;
+        const result = this.scoreSystem.evaluateAnswer(isCorrect);
+
+        if (isCorrect) {
+          this.sound.correct();
+        } else {
+          this.sound.wrong();
+        }
+
+        this.updateHudScoreAndStreak();
+        this.syncPlayerState();
+
+        const nextLabel = this.currentRound < 4 ? 'Siguiente Juego / Continuar' : 'Ver Podio Final 🏆';
+        document.getElementById('btnAdminNextLabel').textContent = nextLabel;
+        document.getElementById('btnIntermissionNextText').textContent = nextLabel;
+
+        // Mostrar animación del juego por 1.4 segundos y abrir la pantalla intermedia con Top 10
+        setTimeout(() => {
+          this.showRoundIntermissionScreen(result, qObj.options[correctIdx]);
+        }, 1400);
+      }
+
+      /**
+       * Muestra entre juego y juego si respondió bien o no, puntos ganados, racha y el Top 10
+       */
+      showRoundIntermissionScreen(result, correctText) {
+        document.getElementById('screenGame').classList.add('hidden');
+        document.getElementById('screenRoundResults').classList.remove('hidden');
+
+        const card = document.getElementById('intermissionPlayerCard');
+        const icon = document.getElementById('intermissionIcon');
+        const title = document.getElementById('intermissionTitle');
+        const subtitle = document.getElementById('intermissionSubtitle');
+        const streakBanner = document.getElementById('intermissionStreakBanner');
+
+        if (result.isCorrect) {
+          card.className = 'rounded-2xl p-5 border bg-emerald-950/90 border-emerald-400/50 text-center shadow-lg';
+          icon.textContent = '🎉';
+          title.textContent = `¡Respuesta Correcta! +${result.totalEarned} pts`;
+          subtitle.textContent = result.inStreak
+            ? `Puntaje base 100 pts × 1.5 por racha = +${result.totalEarned} puntos sumados a tu total`
+            : `Sumaste +${result.totalEarned} puntos a tu puntaje total`;
+        } else {
+          card.className = 'rounded-2xl p-5 border bg-rose-950/90 border-rose-400/50 text-center shadow-lg';
+          icon.textContent = '💥';
+          title.textContent = this.selectedAnswerIndex === null ? 'Sin respuesta (+0 pts)' : 'Respuesta Incorrecta (+0 pts)';
+          subtitle.textContent = `La opción correcta era: "${correctText}"`;
+        }
+
+        if (result.inStreak) {
+          streakBanner.classList.remove('hidden');
+          streakBanner.textContent = `🔥 ¡Racha de ${result.currentStreak} aciertos seguidos! (Puntos x1.5 = 150 pts)`;
+        } else {
+          streakBanner.classList.add('hidden');
+        }
+
+        // Controles de avance según rol (Admin vs Jugador)
+        const btnNextAdmin = document.getElementById('btnIntermissionNextAdmin');
+        const waitMsg = document.getElementById('intermissionWaitingMsg');
+        if (this.player.isAdmin) {
+          btnNextAdmin.classList.remove('hidden');
+          btnNextAdmin.classList.add('inline-flex');
+          waitMsg.classList.add('hidden');
+        } else {
+          btnNextAdmin.classList.add('hidden');
+          btnNextAdmin.classList.remove('inline-flex');
+          waitMsg.classList.remove('hidden');
+        }
+
+        this.renderTop10Intermission();
+      }
+
+      renderTop10Intermission() {
+        document.getElementById('intermissionRoundLabel').textContent = `Ronda ${this.currentRound + 1} de 5`;
+        const players = this.sync.getAllPlayers();
+        players.sort((a, b) => b.score - a.score || (b.maxStreak || 0) - (a.maxStreak || 0));
+        const top10 = players.slice(0, 10);
+
+        const container = document.getElementById('intermissionTop10List');
+        if (top10.length === 0) {
+          container.innerHTML = `<div class="p-4 text-center text-xs text-slate-400">Sin jugadores registrados en el ranking.</div>`;
+          return;
+        }
+
+        container.innerHTML = top10
+          .map(
+            (p, idx) => `
+            <div class="px-4 py-2.5 flex items-center justify-between ${p.id === this.player.id ? 'bg-purple-900/35' : ''}">
+              <div class="flex items-center gap-3">
+                <span class="w-6 h-6 rounded-lg ${
+                  idx === 0
+                    ? 'bg-amber-400 text-slate-950'
+                    : idx === 1
+                    ? 'bg-slate-300 text-slate-900'
+                    : idx === 2
+                    ? 'bg-amber-700 text-white'
+                    : 'bg-slate-800 text-slate-300'
+                } font-arcade text-xs flex items-center justify-center font-bold">
+                  ${idx + 1}
+                </span>
+                <span class="font-bold text-white text-sm">${p.name}</span>
+                ${p.id === this.player.id ? '<span class="text-[10px] px-2 py-0.5 rounded bg-purple-500/30 text-purple-200 font-bold">TÚ</span>' : ''}
+              </div>
+              <div class="flex items-center gap-3">
+                ${(p.streak || 0) >= 2 ? `<span class="text-xs text-orange-400 font-bold">🔥 x${p.streak}</span>` : ''}
+                <span class="font-arcade text-sm sm:text-base text-amber-300">${p.score} pts</span>
+              </div>
+            </div>
+          `
+          )
+          .join('');
+      }
+
+      updateHudScoreAndStreak() {
+        document.getElementById('hudScoreValue').textContent = this.scoreSystem.score;
+        const streakVal = document.getElementById('hudStreakValue');
+        const streakIcon = document.getElementById('hudStreakIcon');
+        const streakCont = document.getElementById('hudStreakContainer');
+
+        streakVal.textContent = `x${this.scoreSystem.streak}`;
+
+        if (this.scoreSystem.streak >= 2) {
+          streakIcon.textContent = '🔥';
+          streakCont.className = 'streak-fire flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-orange-600/40 to-red-600/40 border border-orange-400 text-xs sm:text-sm font-bold text-white';
+        } else {
+          streakIcon.textContent = '⚡';
+          streakCont.className = 'flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-800/90 border border-slate-700 text-xs sm:text-sm font-bold';
+        }
+      }
+
+      advanceToNextRound() {
+        if (this.currentRound < 4) {
+          const nextRound = this.currentRound + 1;
+          if (this.player.isAdmin) {
+            this.sync.setSessionState({ status: 'IN_GAME', currentRound: nextRound });
+          }
+          this.loadRound(nextRound);
+        } else {
+          if (this.player.isAdmin) {
+            this.sync.setSessionState({ status: 'PODIUM', currentRound: 5 });
+          }
+          this.showFinalPodium();
+        }
+      }
+
+      /**
+       * Muestra la Pantalla Final con el Podio (1º, 2º y 3º) y el Ranking
+       */
+      showFinalPodium() {
+        clearInterval(this.timerInterval);
+        if (this.activeCanvasGame) {
+          this.activeCanvasGame.stop();
+          this.activeCanvasGame = null;
+        }
+
+        document.getElementById('screenGame').classList.add('hidden');
+        document.getElementById('screenRoundResults').classList.add('hidden');
+        document.getElementById('screenPodium').classList.remove('hidden');
+
+        // Solo el Admin ve el botón "Jugar de Nuevo"
+        const adminPodiumControls = document.getElementById('podiumAdminControls');
+        if (this.player.isAdmin) {
+          adminPodiumControls.classList.remove('hidden');
+        } else {
+          adminPodiumControls.classList.add('hidden');
+        }
+
+        this.syncPlayerState();
+        this.renderPodiumUI();
+        this.sound.fanfare();
+        this.launchConfetti();
+      }
+
+      renderPodiumUI() {
+        const players = this.sync.getAllPlayers();
+        players.sort((a, b) => b.score - a.score || (b.maxStreak || 0) - (a.maxStreak || 0));
+
+        const first = players[0] || { name: 'Vacante', score: 0, maxStreak: 0 };
+        const second = players[1] || { name: 'Vacante', score: 0, maxStreak: 0 };
+        const third = players[2] || { name: 'Vacante', score: 0, maxStreak: 0 };
+
+        const pedestalsEl = document.getElementById('podiumPedestals');
+        pedestalsEl.innerHTML = `
+          <!-- 2º PUESTO (Izquierda) -->
+          <div class="flex flex-col items-center">
+            <div class="text-center mb-2">
+              <div class="w-12 h-12 mx-auto rounded-2xl bg-slate-300 text-slate-900 font-arcade text-xl flex items-center justify-center shadow-lg border-2 border-white mb-1">
+                🥈
+              </div>
+              <p class="font-bold text-white text-xs sm:text-sm truncate max-w-[110px] sm:max-w-[150px]">${second.name}</p>
+              <span class="font-arcade text-slate-300 text-sm sm:text-base">${second.score} pts</span>
+              <span class="block text-[10px] text-amber-300">🔥 Racha máx: x${second.maxStreak || 0}</span>
+            </div>
+            <div class="podium-bar w-full h-28 sm:h-36 rounded-t-2xl bg-gradient-to-b from-slate-300 to-slate-500 border-t-4 border-white flex flex-col items-center justify-center shadow-xl">
+              <span class="font-arcade text-3xl sm:text-4xl text-slate-900 font-bold">2º</span>
+            </div>
+          </div>
+
+          <!-- 1º PUESTO (Centro más alto) -->
+          <div class="flex flex-col items-center">
+            <div class="text-center mb-2">
+              <div class="text-2xl animate-bounce mb-0.5">👑</div>
+              <div class="w-14 h-14 mx-auto rounded-2xl bg-amber-400 text-slate-950 font-arcade text-2xl flex items-center justify-center shadow-xl border-2 border-yellow-200 mb-1">
+                🥇
+              </div>
+              <p class="font-bold text-amber-300 text-sm sm:text-base truncate max-w-[120px] sm:max-w-[170px]">${first.name}</p>
+              <span class="font-arcade text-white text-lg sm:text-xl">${first.score} pts</span>
+              <span class="block text-xs text-orange-400 font-bold">🔥 Racha máx: x${first.maxStreak || 0}</span>
+            </div>
+            <div class="podium-bar w-full h-40 sm:h-52 rounded-t-2xl bg-gradient-to-b from-amber-300 via-amber-400 to-amber-600 border-t-4 border-yellow-100 flex flex-col items-center justify-center shadow-2xl">
+              <span class="font-arcade text-4xl sm:text-5xl text-slate-950 font-bold">1º</span>
+            </div>
+          </div>
+
+          <!-- 3º PUESTO (Derecha) -->
+          <div class="flex flex-col items-center">
+            <div class="text-center mb-2">
+              <div class="w-12 h-12 mx-auto rounded-2xl bg-amber-700 text-amber-100 font-arcade text-xl flex items-center justify-center shadow-lg border-2 border-amber-400 mb-1">
+                🥉
+              </div>
+              <p class="font-bold text-white text-xs sm:text-sm truncate max-w-[110px] sm:max-w-[150px]">${third.name}</p>
+              <span class="font-arcade text-amber-200 text-sm sm:text-base">${third.score} pts</span>
+              <span class="block text-[10px] text-amber-300">🔥 Racha máx: x${third.maxStreak || 0}</span>
+            </div>
+            <div class="podium-bar w-full h-20 sm:h-28 rounded-t-2xl bg-gradient-to-b from-amber-600 to-amber-800 border-t-4 border-amber-400 flex flex-col items-center justify-center shadow-xl">
+              <span class="font-arcade text-2xl sm:text-3xl text-white font-bold">3º</span>
+            </div>
+          </div>
+        `;
+
+        document.getElementById('rankingTotalPlayers').textContent = `${players.length} participante(s)`;
+        const listEl = document.getElementById('rankingListContainer');
+        listEl.innerHTML = players
+          .map(
+            (p, idx) => `
+            <div class="px-4 py-3 flex items-center justify-between ${p.id === this.player.id ? 'bg-purple-900/30' : ''}">
+              <div class="flex items-center gap-3">
+                <span class="w-7 h-7 rounded-lg ${
+                  idx === 0
+                    ? 'bg-amber-400 text-slate-950'
+                    : idx === 1
+                    ? 'bg-slate-300 text-slate-900'
+                    : idx === 2
+                    ? 'bg-amber-700 text-white'
+                    : 'bg-slate-800 text-slate-300'
+                } font-arcade text-sm flex items-center justify-center font-bold">
+                  ${idx + 1}
+                </span>
+                <div>
+                  <span class="font-bold text-white text-sm sm:text-base">${p.name}</span>
+                  ${p.id === this.player.id ? '<span class="ml-2 text-[10px] px-2 py-0.5 rounded bg-purple-500/30 text-purple-200 font-bold">TÚ</span>' : ''}
+                </div>
+              </div>
+              <div class="flex items-center gap-4">
+                <span class="text-xs text-orange-300 font-semibold">🔥 Racha máx: x${p.maxStreak || 0}</span>
+                <span class="font-arcade text-base sm:text-lg text-amber-300">${p.score} pts</span>
+              </div>
+            </div>
+          `
+          )
+          .join('');
+      }
+
+      launchConfetti() {
+        if (typeof confetti === 'function') {
+          confetti({
+            particleCount: 95,
+            spread: 80,
+            origin: { y: 0.6 }
+          });
+        }
+      }
+
+      restartToWaitingRoom() {
+        this.gameStarted = false;
+        this.scoreSystem.reset();
+        this.updateHudScoreAndStreak();
+        this.hasAnsweredCurrentRound = false;
+        this.selectedAnswerIndex = null;
+        this.syncPlayerState();
+
+        document.getElementById('screenPodium').classList.add('hidden');
+        document.getElementById('screenRoundResults').classList.add('hidden');
+        document.getElementById('screenGame').classList.add('hidden');
+        document.getElementById('playerHudBar').classList.add('hidden');
+        document.getElementById('screenWaitingRoom').classList.remove('hidden');
+        document.getElementById('btnAdminNextLabel').textContent = 'Iniciar Quiz';
+        this.renderWaitingRoomUI();
+      }
+
+      syncPlayerState() {
+        if (!this.player.name || this.player.isAdmin) return;
+        this.sync.upsertPlayer({
+          id: this.player.id,
+          name: this.player.name,
+          isAdmin: false,
+          score: this.scoreSystem.score,
+          streak: this.scoreSystem.streak,
+          maxStreak: this.scoreSystem.maxStreak,
+          answeredRound: this.currentRound,
+          hasAnswered: this.hasAnsweredCurrentRound
+        });
+      }
+
+      /**
+       * Manejo de eventos sincronizados entre pestañas (BroadcastChannel + LocalStorage)
+       */
+      handleSyncMessage(msg) {
+        const { type, payload } = msg;
+        if (type === 'ADMIN_SET_TIME') {
+          this.roundDurationSec = payload.duration;
+          document.getElementById('adminTimeSelect').value = String(payload.duration);
+        } else if (type === 'ADMIN_START_QUIZ') {
+          if (!document.getElementById('screenLogin').classList.contains('hidden')) return;
+          this.roundDurationSec = payload.duration || this.roundDurationSec;
+          this.startQuizSession(0);
+        } else if (type === 'ADMIN_REVEAL') {
+          if (this.gameStarted && this.currentRound === payload.round && !this.roundEvaluated) {
+            this.triggerTimeZeroSequence();
+          }
+        } else if (type === 'ADMIN_NEXT_ROUND') {
+          if (!this.gameStarted) return;
+          if (!this.roundEvaluated) this.evaluateCurrentRound();
+          this.advanceToNextRound();
+        } else if (type === 'QUESTIONS_UPDATED') {
+          this.quizData.questions = payload.questions;
+          if (this.gameStarted && !this.roundEvaluated && this.currentRound < 5) {
+            this.loadRound(this.currentRound);
+          }
+        } else if (type === 'PLAYERS_UPDATED') {
+          this.renderWaitingRoomUI();
+          this.updateLiveCountersUI();
+          if (!document.getElementById('screenRoundResults').classList.contains('hidden')) {
+            this.renderTop10Intermission();
+          }
+          if (!document.getElementById('screenPodium').classList.contains('hidden')) {
+            this.renderPodiumUI();
+          }
+        } else if (type === 'ADMIN_RESTART') {
+          if (!document.getElementById('screenLogin').classList.contains('hidden')) return;
+          this.restartToWaitingRoom();
+        }
+      }
+
+      /**
+       * Lógica del Editor de las 5 Preguntas del Administrador
+       */
+      openQuestionEditor(tabIdx = 0) {
+        this.editorActiveTab = tabIdx;
+        this.renderEditorTabs();
+        this.populateEditorTab(tabIdx);
+        document.getElementById('modalQuestionEditor').classList.remove('hidden');
+      }
+
+      renderEditorTabs() {
+        const tabsContainer = document.getElementById('editorTabsContainer');
+        tabsContainer.innerHTML = '';
+        this.quizData.questions.forEach((q, idx) => {
+          const btn = document.createElement('button');
+          btn.type = 'button';
+          btn.className = `px-3.5 py-2 rounded-t-xl text-xs font-bold transition ${
+            idx === this.editorActiveTab
+              ? 'bg-amber-500 text-slate-950'
+              : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
+          }`;
+          btn.textContent = `Juego ${idx + 1}`;
+          btn.addEventListener('click', () => {
+            this.saveCurrentTabToMemory();
+            this.editorActiveTab = idx;
+            this.renderEditorTabs();
+            this.populateEditorTab(idx);
+          });
+          tabsContainer.appendChild(btn);
+        });
+      }
+
+      populateEditorTab(idx) {
+        const q = this.quizData.questions[idx];
+        document.getElementById('editorGameLabel').textContent = q.gameTitle;
+        document.getElementById('editorQuestionInput').value = q.question;
+        for (let i = 0; i < 4; i++) {
+          document.getElementById(`editorOpt${i}`).value = q.options[i];
+        }
+        const radios = document.querySelectorAll('input[name="editorCorrectOption"]');
+        radios.forEach((r) => {
+          r.checked = parseInt(r.value, 10) === q.correctIndex;
+        });
+      }
+
+      saveCurrentTabToMemory() {
+        const q = this.quizData.questions[this.editorActiveTab];
+        if (!q) return;
+        q.question = document.getElementById('editorQuestionInput').value.trim() || q.question;
+        for (let i = 0; i < 4; i++) {
+          const val = document.getElementById(`editorOpt${i}`).value.trim();
+          if (val) q.options[i] = val;
+        }
+        const checkedRadio = document.querySelector('input[name="editorCorrectOption"]:checked');
+        if (checkedRadio) {
+          q.correctIndex = parseInt(checkedRadio.value, 10);
+        }
+      }
+
+      showToast(message) {
+        const toast = document.getElementById('toastNotification');
+        document.getElementById('toastMessage').textContent = message;
+        toast.classList.remove('opacity-0', 'translate-y-4');
+        clearTimeout(this.toastTimeout);
+        this.toastTimeout = setTimeout(() => {
+          toast.classList.add('opacity-0', 'translate-y-4');
+        }, 2800);
+      }
+
+      /**
+       * Bucle principal de animación 60 FPS para los Mini-Juegos en Canvas HTML5
+       */
+      startAnimationLoop() {
+        const loop = () => {
+          if (this.activeCanvasGame && this.activeCanvasGame.running) {
+            this.activeCanvasGame.update();
+            this.activeCanvasGame.draw();
+          }
+          requestAnimationFrame(loop);
+        };
+        requestAnimationFrame(loop);
+      }
+    }
+
+    // Inicializar la aplicación al cargar la ventana
+    window.onload = function () {
+      window.edisonQuizApp = new AppController();
+    };
+  </script>
+</body>
+</html>
