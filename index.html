@@ -19,6 +19,9 @@
   <!-- Iconos Phosphor -->
   <script src="https://unpkg.com/@phosphor-icons/web"></script>
 
+  <!-- Cliente MQTT WebSockets para sincronización global de respaldo en despliegues externos (Vercel/Netlify/GitHub Pages) -->
+  <script src="https://unpkg.com/mqtt@5.3.4/dist/mqtt.min.js"></script>
+
   <script>
     tailwind.config = {
       darkMode: 'class',
@@ -173,6 +176,8 @@
           </div>
           <div class="text-xs text-slate-400 flex items-center gap-2">
             <span id="hudGameTitle">Juego 1 de 5</span>
+            <span class="text-slate-600">•</span>
+            <span class="text-[10px] text-slate-400 font-mono" title="ID Único de Sesión">ID: <span id="hudUserId">...</span></span>
           </div>
         </div>
       </div>
@@ -236,8 +241,12 @@
             EdisonQuiz
           </h1>
           <p class="text-slate-400 text-sm mt-1">
-            Ingresa tu nombre para unirte a la partida
+            Ingresa tu nombre para unirte a la partida global
           </p>
+          <div class="mt-2 inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-950/90 border border-white/10 text-[11px] font-semibold text-emerald-300">
+            <span id="dbStatusDot" class="w-2 h-2 rounded-full bg-amber-400 animate-pulse"></span>
+            <span id="dbStatusText">Conectando a sala global...</span>
+          </div>
         </div>
 
         <form id="loginForm" class="space-y-4">
@@ -633,7 +642,11 @@
        ARQUITECTURA MODULAR EN CLASES ES6
        (Puedes separar cada clase en su propio archivo .js en VS Code si lo deseas)
   ========================================================================== -->
-  <script>
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+    import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+    import { getFirestore, doc, getDoc, setDoc, updateDoc, deleteDoc, onSnapshot, collection, getDocs } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
     /**
      * =========================================================================
      * CLASE 1: SoundFX (Sintetizador de Audio Retro con Web Audio API)
@@ -782,13 +795,12 @@
 
     /**
      * =========================================================================
-     * CLASE 3: QuizDataManager (Gestión de Preguntas y Persistencia LocalStorage)
+     * CLASE 3: QuizDataManager (Gestión Global de Preguntas en Memoria + Nube)
      * =========================================================================
      */
     class QuizDataManager {
       constructor() {
-        this.STORAGE_KEY = 'edison_quiz_questions_v1';
-        this.questions = this.loadQuestions();
+        this.questions = this.getDefaultQuestions();
       }
 
       getDefaultQuestions() {
@@ -813,9 +825,9 @@
           },
           {
             gameTitle: 'Juego 4: Cintas Transportadoras (Conveyor Lanes)',
-            question: '¿Qué API del navegador permite comunicar pestañas abiertas del mismo origen sin servidor?',
-            options: ['WebSocket API', 'BroadcastChannel API', 'Fetch REST API', 'GraphQL Client'],
-            correctIndex: 1
+            question: '¿Qué protocolo permite comunicación bidireccional en tiempo real entre clientes y servidores web?',
+            options: ['WebSocket', 'HTTP Estático', 'FTP Simple', 'SMTP Mail'],
+            correctIndex: 0
           },
           {
             gameTitle: 'Juego 5: El Cañón / Tiro al Blanco (Target Cannon)',
@@ -826,144 +838,290 @@
         ];
       }
 
-      loadQuestions() {
-        try {
-          const raw = localStorage.getItem(this.STORAGE_KEY);
-          if (raw) {
-            const parsed = JSON.parse(raw);
-            if (Array.isArray(parsed) && parsed.length === 5) return parsed;
-          }
-        } catch (e) {
-          console.warn('Error leyendo preguntas en LocalStorage:', e);
+      setQuestions(newQuestions) {
+        if (Array.isArray(newQuestions) && newQuestions.length === 5) {
+          this.questions = newQuestions;
         }
-        return this.getDefaultQuestions();
-      }
-
-      saveQuestions(newQuestions) {
-        this.questions = newQuestions;
-        try {
-          localStorage.setItem(this.STORAGE_KEY, JSON.stringify(this.questions));
-        } catch (e) {
-          console.warn('Error guardando preguntas:', e);
-        }
-      }
-
-      resetToDefaults() {
-        const defaults = this.getDefaultQuestions();
-        this.saveQuestions(defaults);
-        return defaults;
       }
     }
 
     /**
      * =========================================================================
-     * CLASE 4: SyncManager (Sincronización Multi-Pestaña con BroadcastChannel + LocalStorage)
-     * Gestiona estado de la sala (máx 50 jugadores), quiénes han respondido y rondas.
+     * CLASE 4: SyncManager (Sincronización Global Multi-Dispositivo en Tiempo Real)
+     * - Soporta Firebase Firestore automáticamente y broker global WSS en despliegues
+     *   externos (Vercel / Netlify / GitHub Pages) para que funcione entre distintas
+     *   máquinas sin depender de caché local.
      * =========================================================================
      */
     class SyncManager {
-      constructor(onEventCallback) {
-        this.CHANNEL_NAME = 'edison_game_quiz_channel_v1';
-        this.PLAYERS_KEY = 'edison_game_quiz_players_v1';
-        this.STATE_KEY = 'edison_game_quiz_session_state_v1';
+      constructor(callbacks) {
+        this.callbacks = callbacks || {};
         this.MAX_PLAYERS = 50;
-        this.onEventCallback = onEventCallback;
-        this.channel = null;
+        this.playersMap = new Map();
+        this.sessionState = {
+          status: 'WAITING',
+          currentRound: 0,
+          duration: 30,
+          roundActionId: 0,
+          sessionId: 1
+        };
 
-        if ('BroadcastChannel' in window) {
-          this.channel = new BroadcastChannel(this.CHANNEL_NAME);
-          this.channel.onmessage = (event) => {
-            if (event.data && this.onEventCallback) {
-              this.onEventCallback(event.data);
+        this.user = null;
+        this.userId = crypto.randomUUID();
+        this.mode = 'INIT'; // 'FIRESTORE' | 'MQTT_CLOUD'
+        this.db = null;
+        this.auth = null;
+        this.mqttClient = null;
+        this.appId = typeof __app_id !== 'undefined' ? __app_id : 'edison-quiz-global-v1';
+        this.topicPrefix = `edisonquiz_global_room/${this.appId}`;
+      }
+
+      async init() {
+        const hasCanvasFirebase = typeof __firebase_config !== 'undefined' && __firebase_config;
+
+        if (hasCanvasFirebase) {
+          try {
+            const firebaseConfig = JSON.parse(__firebase_config);
+            const app = initializeApp(firebaseConfig);
+            this.db = getFirestore(app);
+            this.auth = getAuth(app);
+
+            // REGLA 3: Autenticar primero antes de cualquier operación Firestore
+            if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+              await signInWithCustomToken(this.auth, __initial_auth_token);
+            } else {
+              await signInAnonymously(this.auth);
             }
-          };
+
+            this.user = this.auth.currentUser;
+            this.userId = this.user?.uid || this.userId;
+            this.mode = 'FIRESTORE';
+            this.setupFirestoreListeners();
+            if (this.callbacks.onConnectionChange) {
+              this.callbacks.onConnectionChange(true, 'Conectado a Cloud Firestore Global');
+            }
+            return;
+          } catch (err) {
+            console.warn('Pasando a sincronización Cloud WSS global:', err);
+          }
         }
 
-        // Fallback con evento storage entre pestañas
-        window.addEventListener('storage', (e) => {
-          if (e.key === 'edison_sync_event' && e.newValue) {
-            try {
-              const data = JSON.parse(e.newValue);
-              if (this.onEventCallback) this.onEventCallback(data);
-            } catch (err) {}
+        // Si se despliega en Vercel / Netlify / GitHub Pages fuera del entorno de Canvas
+        this.initCloudMqttBroker();
+      }
+
+      setupFirestoreListeners() {
+        if (!this.user || !this.db) return;
+
+        // 1. Escuchar estado global de la sesión (Ruta estricta REGLA 1)
+        const sessionDocRef = doc(this.db, 'artifacts', this.appId, 'public', 'data', 'quiz_state', 'session');
+        onSnapshot(
+          sessionDocRef,
+          (snap) => {
+            if (snap.exists()) {
+              const data = snap.data();
+              this.sessionState = { ...this.sessionState, ...data };
+              if (this.callbacks.onSessionState) {
+                this.callbacks.onSessionState(this.sessionState);
+              }
+            }
+          },
+          (err) => console.error('Error en snapshot de sesión:', err)
+        );
+
+        // 2. Escuchar banco global de preguntas editadas por el Admin
+        const questionsDocRef = doc(this.db, 'artifacts', this.appId, 'public', 'data', 'quiz_state', 'questions');
+        onSnapshot(
+          questionsDocRef,
+          (snap) => {
+            if (snap.exists()) {
+              const data = snap.data();
+              if (data.itemsJson) {
+                try {
+                  const parsed = JSON.parse(data.itemsJson);
+                  if (this.callbacks.onQuestionsUpdated) {
+                    this.callbacks.onQuestionsUpdated(parsed);
+                  }
+                } catch (e) {}
+              }
+            }
+          },
+          (err) => console.error('Error en snapshot de preguntas:', err)
+        );
+
+        // 3. Escuchar colección global de jugadores (REGLA 2: sin queries complejas, filtrado en memoria)
+        const playersColRef = collection(this.db, 'artifacts', this.appId, 'public', 'data', 'quiz_players');
+        onSnapshot(
+          playersColRef,
+          (snap) => {
+            this.playersMap.clear();
+            snap.forEach((docSnap) => {
+              const pData = docSnap.data();
+              if (pData && !pData.isAdmin) {
+                this.playersMap.set(docSnap.id, pData);
+              }
+            });
+            if (this.callbacks.onPlayersUpdated) {
+              this.callbacks.onPlayersUpdated(this.getAllPlayers());
+            }
+          },
+          (err) => console.error('Error en snapshot de jugadores:', err)
+        );
+      }
+
+      initCloudMqttBroker() {
+        this.mode = 'MQTT_CLOUD';
+        if (typeof mqtt === 'undefined') {
+          if (this.callbacks.onConnectionChange) {
+            this.callbacks.onConnectionChange(false, 'Modo Local (Sin red externa)');
           }
+          return;
+        }
+
+        const brokerUrl = 'wss://broker.emqx.io:8084/mqtt';
+        this.mqttClient = mqtt.connect(brokerUrl, {
+          clientId: 'edison_' + this.userId.substring(0, 12) + '_' + Math.floor(Math.random() * 1000),
+          clean: true,
+          reconnectPeriod: 2000
+        });
+
+        this.mqttClient.on('connect', () => {
+          if (this.callbacks.onConnectionChange) {
+            this.callbacks.onConnectionChange(true, 'Conectado a Servidor Global Multi-Dispositivo');
+          }
+          this.mqttClient.subscribe(`${this.topicPrefix}/session`, { qos: 1 });
+          this.mqttClient.subscribe(`${this.topicPrefix}/questions`, { qos: 1 });
+          this.mqttClient.subscribe(`${this.topicPrefix}/players/+`, { qos: 1 });
+        });
+
+        this.mqttClient.on('message', (topic, messageBuffer) => {
+          try {
+            const raw = messageBuffer.toString();
+            if (!raw) return;
+            const data = JSON.parse(raw);
+
+            if (topic === `${this.topicPrefix}/session`) {
+              this.sessionState = { ...this.sessionState, ...data };
+              if (this.callbacks.onSessionState) {
+                this.callbacks.onSessionState(this.sessionState);
+              }
+            } else if (topic === `${this.topicPrefix}/questions`) {
+              if (Array.isArray(data.questions) && this.callbacks.onQuestionsUpdated) {
+                this.callbacks.onQuestionsUpdated(data.questions);
+              }
+            } else if (topic.startsWith(`${this.topicPrefix}/players/`)) {
+              const pId = topic.split('/').pop();
+              if (data.deleted) {
+                this.playersMap.delete(pId);
+              } else if (!data.isAdmin) {
+                this.playersMap.set(pId, data);
+              }
+              if (this.callbacks.onPlayersUpdated) {
+                this.callbacks.onPlayersUpdated(this.getAllPlayers());
+              }
+            }
+          } catch (e) {}
         });
       }
 
-      broadcast(type, payload = {}) {
-        const message = { type, payload, timestamp: Date.now() };
-        if (this.channel) {
-          this.channel.postMessage(message);
-        }
-        try {
-          localStorage.setItem('edison_sync_event', JSON.stringify(message));
-        } catch (e) {}
-      }
-
       getSessionState() {
-        try {
-          const raw = localStorage.getItem(this.STATE_KEY);
-          return raw ? JSON.parse(raw) : { status: 'WAITING', currentRound: 0, duration: 30 };
-        } catch (e) {
-          return { status: 'WAITING', currentRound: 0, duration: 30 };
-        }
+        return this.sessionState;
       }
 
-      setSessionState(newState) {
-        const merged = { ...this.getSessionState(), ...newState, updatedAt: Date.now() };
-        try {
-          localStorage.setItem(this.STATE_KEY, JSON.stringify(merged));
-        } catch (e) {}
-        return merged;
+      async setSessionState(partialState) {
+        this.sessionState = {
+          ...this.sessionState,
+          ...partialState,
+          updatedAt: Date.now()
+        };
+
+        if (this.mode === 'FIRESTORE') {
+          if (!this.user || !this.db) return this.sessionState;
+          const sessionDocRef = doc(this.db, 'artifacts', this.appId, 'public', 'data', 'quiz_state', 'session');
+          try {
+            await setDoc(sessionDocRef, this.sessionState, { merge: true });
+          } catch (e) {
+            console.error('Error guardando sesión en Firestore:', e);
+          }
+        } else if (this.mode === 'MQTT_CLOUD' && this.mqttClient?.connected) {
+          this.mqttClient.publish(
+            `${this.topicPrefix}/session`,
+            JSON.stringify(this.sessionState),
+            { qos: 1, retain: true }
+          );
+        }
+        return this.sessionState;
+      }
+
+      async saveGlobalQuestions(questionsArray) {
+        if (this.mode === 'FIRESTORE') {
+          if (!this.user || !this.db) return;
+          const questionsDocRef = doc(this.db, 'artifacts', this.appId, 'public', 'data', 'quiz_state', 'questions');
+          try {
+            await setDoc(questionsDocRef, {
+              itemsJson: JSON.stringify(questionsArray),
+              updatedAt: Date.now()
+            });
+          } catch (e) {
+            console.error('Error guardando preguntas en Firestore:', e);
+          }
+        } else if (this.mode === 'MQTT_CLOUD' && this.mqttClient?.connected) {
+          this.mqttClient.publish(
+            `${this.topicPrefix}/questions`,
+            JSON.stringify({ questions: questionsArray, updatedAt: Date.now() }),
+            { qos: 1, retain: true }
+          );
+        }
       }
 
       getAllPlayers() {
-        try {
-          const raw = localStorage.getItem(this.PLAYERS_KEY);
-          const list = raw ? JSON.parse(raw) : [];
-          // Filtrar solo jugadores normales (excluir al Admin del conteo de 50 jugadores)
-          return list.filter((p) => !p.isAdmin);
-        } catch (e) {
-          return [];
-        }
+        const currentSessionId = this.sessionState.sessionId || 1;
+        const list = Array.from(this.playersMap.values()).filter(
+          (p) => !p.isAdmin && (p.sessionId || 1) === currentSessionId
+        );
+        return list;
       }
 
-      upsertPlayer(playerObj) {
+      async upsertPlayer(playerObj) {
         if (playerObj.isAdmin) return this.getAllPlayers();
-        const players = this.getAllPlayers();
-        const idx = players.findIndex((p) => p.id === playerObj.id || p.name.toLowerCase() === playerObj.name.toLowerCase());
-        if (idx >= 0) {
-          players[idx] = { ...players[idx], ...playerObj, updatedAt: Date.now() };
-        } else {
-          if (players.length >= this.MAX_PLAYERS) {
-            return null; // Sala llena (máx 50)
-          }
-          players.push({ ...playerObj, updatedAt: Date.now() });
+
+        const currentPlayers = this.getAllPlayers();
+        const exists = currentPlayers.some(
+          (p) => p.id === playerObj.id || p.name.toLowerCase() === playerObj.name.toLowerCase()
+        );
+
+        if (!exists && currentPlayers.length >= this.MAX_PLAYERS) {
+          return null; // Sala llena (máx 50 jugadores)
         }
-        try {
-          localStorage.setItem(this.PLAYERS_KEY, JSON.stringify(players));
-        } catch (e) {}
-        this.broadcast('PLAYERS_UPDATED', { players });
-        return players;
-      }
 
-      resetAllPlayersAnsweredStatus() {
-        const players = this.getAllPlayers().map((p) => ({
-          ...p,
-          answeredRound: -1,
-          hasAnswered: false
-        }));
-        try {
-          localStorage.setItem(this.PLAYERS_KEY, JSON.stringify(players));
-        } catch (e) {}
-        this.broadcast('PLAYERS_UPDATED', { players });
-      }
+        const payload = {
+          ...playerObj,
+          sessionId: this.sessionState.sessionId || 1,
+          updatedAt: Date.now()
+        };
 
-      clearPlayers() {
-        try {
-          localStorage.removeItem(this.PLAYERS_KEY);
-        } catch (e) {}
-        this.broadcast('PLAYERS_UPDATED', { players: [] });
+        this.playersMap.set(playerObj.id, payload);
+        if (this.callbacks.onPlayersUpdated) {
+          this.callbacks.onPlayersUpdated(this.getAllPlayers());
+        }
+
+        if (this.mode === 'FIRESTORE') {
+          if (!this.user || !this.db) return this.getAllPlayers();
+          const pDocRef = doc(this.db, 'artifacts', this.appId, 'public', 'data', 'quiz_players', playerObj.id);
+          try {
+            await setDoc(pDocRef, payload, { merge: true });
+          } catch (e) {
+            console.error('Error guardando jugador en Firestore:', e);
+          }
+        } else if (this.mode === 'MQTT_CLOUD' && this.mqttClient?.connected) {
+          this.mqttClient.publish(
+            `${this.topicPrefix}/players/${playerObj.id}`,
+            JSON.stringify(payload),
+            { qos: 1, retain: true }
+          );
+        }
+
+        return this.getAllPlayers();
       }
     }
 
@@ -971,12 +1129,14 @@
      * =========================================================================
      * CLASE 5: MiniGame1_Kahoot (Juego 1: Kahoot Clásico Grid 2x2)
      * 4 tarjetas vibrantes (Rojo, Azul, Amarillo, Verde).
+     * Permite cambiar de opción libremente mientras el tiempo siga activo.
      * =========================================================================
      */
     class MiniGame1_Kahoot {
-      constructor(containerEl, onSelectCallback) {
+      constructor(containerEl, onSelectCallback, soundFX) {
         this.container = containerEl;
         this.onSelect = onSelectCallback;
+        this.sound = soundFX;
         this.selectedOption = null;
         this.locked = false;
       }
@@ -1008,16 +1168,17 @@
               <span class="font-arcade text-lg sm:text-2xl leading-snug block">${optText}</span>
             </div>
             <div class="status-badge hidden px-3 py-1 rounded-full bg-white text-slate-950 font-arcade text-xs sm:text-sm shadow">
-              SELLADA
+              SELECCIONADA
             </div>
           `;
 
           btn.addEventListener('click', () => {
+            // Permite cambiar la selección todas las veces que quiera antes de que termine la ronda
             if (this.locked) return;
-            this.locked = true;
             this.selectedOption = idx;
+            if (this.sound) this.sound.select();
             this.highlightSelection(idx);
-            this.onSelect(idx);
+            this.onSelect(idx, true);
           });
 
           this.container.appendChild(btn);
@@ -1028,11 +1189,17 @@
         const cards = this.container.querySelectorAll('.kahoot-card');
         cards.forEach((card, idx) => {
           const badge = card.querySelector('.status-badge');
+          // Limpiar clases previas para permitir cambiar de opción limpiamente
+          card.classList.remove('ring-4', 'ring-white', 'scale-[1.02]', 'opacity-45', 'scale-[0.98]');
           if (idx === selectedIdx) {
             card.classList.add('ring-4', 'ring-white', 'scale-[1.02]');
-            if (badge) badge.classList.remove('hidden');
+            if (badge) {
+              badge.textContent = 'SELECCIONADA';
+              badge.classList.remove('hidden');
+            }
           } else {
             card.classList.add('opacity-45', 'scale-[0.98]');
+            if (badge) badge.classList.add('hidden');
           }
         });
       }
@@ -1701,9 +1868,13 @@
       update() {
         if (!this.running) return;
 
-        // Solo se mueven las cajas hacia abajo cuando el tiempo llega a 0
+        // La banda transportadora se mueve continuamente mientras la ronda está activa
+        if (!this.revealed) {
+          this.beltOffset = (this.beltOffset + (this.isDropping ? 5.5 : 3.0)) % 28;
+        }
+
+        // Las cajas permanecen estáticas arriba y solo bajan al final cuando el tiempo llega a 0
         if (this.isDropping && !this.revealed) {
-          this.beltOffset = (this.beltOffset + 4.5) % 28;
           this.crateProgress += 0.016;
           if (this.crateProgress >= 1) {
             this.crateProgress = 1;
@@ -2177,14 +2348,14 @@
         this.sound = new SoundFX();
         this.scoreSystem = new ScoreSystem();
         this.quizData = new QuizDataManager();
-        this.sync = new SyncManager((msg) => this.handleSyncMessage(msg));
 
         this.player = {
-          id: 'p_' + Math.random().toString(36).substring(2, 9),
+          id: '',
           name: '',
           isAdmin: false
         };
 
+        this.loggedIn = false;
         this.gameStarted = false;
         this.currentRound = 0; // 0 a 4 (5 Mini-Juegos)
         this.roundDurationSec = 30;
@@ -2193,12 +2364,39 @@
         this.selectedAnswerIndex = null;
         this.hasAnsweredCurrentRound = false;
         this.roundEvaluated = false;
+        this.lastHandledActionId = 0;
+        this.currentSessionId = 1;
         this.timerInterval = null;
         this.editorActiveTab = 0;
+
+        this.sync = new SyncManager({
+          onConnectionChange: (isOnline, label) => this.updateConnectionBadge(isOnline, label),
+          onSessionState: (state) => this.handleRemoteSessionState(state),
+          onQuestionsUpdated: (questions) => this.handleRemoteQuestions(questions),
+          onPlayersUpdated: () => this.handleRemotePlayersUpdated()
+        });
 
         this.initMiniGames();
         this.bindEvents();
         this.startAnimationLoop();
+        this.initGlobalConnection();
+      }
+
+      async initGlobalConnection() {
+        await this.sync.init();
+        this.player.id = this.sync.userId;
+        const hudUserIdEl = document.getElementById('hudUserId');
+        if (hudUserIdEl) hudUserIdEl.textContent = this.player.id;
+      }
+
+      updateConnectionBadge(isOnline, label) {
+        const dot = document.getElementById('dbStatusDot');
+        const txt = document.getElementById('dbStatusText');
+        if (!dot || !txt) return;
+        dot.className = isOnline
+          ? 'w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_8px_#34d399]'
+          : 'w-2 h-2 rounded-full bg-rose-400';
+        txt.textContent = label;
       }
 
       initMiniGames() {
@@ -2206,7 +2404,11 @@
         const canvas = document.getElementById('gameCanvas');
         const btnRestoreShot = document.getElementById('btnRestoreShot');
 
-        this.game1 = new MiniGame1_Kahoot(containerGame1, (idx) => this.onPlayerSelectOption(idx, true));
+        this.game1 = new MiniGame1_Kahoot(
+          containerGame1,
+          (idx, locked) => this.onPlayerSelectOption(idx, locked),
+          this.sound
+        );
         this.game2 = new MiniGame2_Platformer(canvas, (idx, locked) => this.onPlayerSelectOption(idx, locked), this.sound);
         this.game3 = new MiniGame3_SpaceDoors(canvas, (idx, locked) => this.onPlayerSelectOption(idx, locked), this.sound);
         this.game4 = new MiniGame4_Conveyor(canvas, (idx, locked) => this.onPlayerSelectOption(idx, locked), this.sound);
@@ -2253,12 +2455,11 @@
         });
 
         // Controles exclusivos del Administrador
-        document.getElementById('adminTimeSelect').addEventListener('change', (e) => {
+        document.getElementById('adminTimeSelect').addEventListener('change', async (e) => {
           if (!this.player.isAdmin) return;
           this.roundDurationSec = parseInt(e.target.value, 10) || 30;
-          this.sync.setSessionState({ duration: this.roundDurationSec });
+          await this.sync.setSessionState({ duration: this.roundDurationSec });
           this.showToast(`Tiempo por pregunta ajustado a ${this.roundDurationSec}s`);
-          this.sync.broadcast('ADMIN_SET_TIME', { duration: this.roundDurationSec });
         });
 
         document.getElementById('btnLobbyStartQuiz').addEventListener('click', () => {
@@ -2298,16 +2499,15 @@
           this.saveCurrentTabToMemory();
           document.getElementById('modalQuestionEditor').classList.add('hidden');
         });
-        document.getElementById('btnSaveQuestions').addEventListener('click', () => {
+        document.getElementById('btnSaveQuestions').addEventListener('click', async () => {
           if (!this.player.isAdmin) return;
           this.saveCurrentTabToMemory();
-          this.quizData.saveQuestions(this.quizData.questions);
-          this.sync.broadcast('QUESTIONS_UPDATED', { questions: this.quizData.questions });
+          await this.sync.saveGlobalQuestions(this.quizData.questions);
           document.getElementById('modalQuestionEditor').classList.add('hidden');
           if (this.gameStarted && this.currentRound < 5 && !this.roundEvaluated) {
             this.loadRound(this.currentRound);
           }
-          this.showToast('¡Preguntas guardadas y sincronizadas!');
+          this.showToast('¡Preguntas guardadas globalmente para todos los jugadores!');
         });
 
         // Controles de Teclado para los Mini-Juegos Canvas
@@ -2389,12 +2589,16 @@
         });
 
         // Botón del Podio Final (Exclusivo Admin)
-        document.getElementById('btnPlayAgain').addEventListener('click', () => {
+        document.getElementById('btnPlayAgain').addEventListener('click', async () => {
           if (!this.player.isAdmin) return;
-          this.sync.setSessionState({ status: 'WAITING', currentRound: 0 });
-          this.sync.resetAllPlayersAnsweredStatus();
+          const nextSessionId = (this.sync.getSessionState().sessionId || 1) + 1;
+          await this.sync.setSessionState({
+            status: 'WAITING',
+            currentRound: 0,
+            sessionId: nextSessionId,
+            roundActionId: Date.now()
+          });
           this.restartToWaitingRoom();
-          this.sync.broadcast('ADMIN_RESTART', {});
         });
       }
 
@@ -2403,7 +2607,7 @@
        * - Si es AdminEdisonGameQuiz, muestra los controles de Admin.
        * - Si es jugador normal, verifica el cupo máximo de 50 personas y lo lleva a la Sala de Espera.
        */
-      login(name) {
+      async login(name) {
         this.sound.init();
         const isAdminKey = name === this.ADMIN_SECRET_NAME;
         const loginErr = document.getElementById('loginErrorMsg');
@@ -2411,7 +2615,9 @@
 
         if (!isAdminKey) {
           const currentPlayers = this.sync.getAllPlayers();
-          const alreadyExists = currentPlayers.some((p) => p.name.toLowerCase() === name.toLowerCase());
+          const alreadyExists = currentPlayers.some(
+            (p) => p.id === this.player.id || p.name.toLowerCase() === name.toLowerCase()
+          );
           if (!alreadyExists && currentPlayers.length >= this.sync.MAX_PLAYERS) {
             loginErr.textContent = 'La sala de espera ha alcanzado su capacidad máxima (50 jugadores).';
             loginErr.classList.remove('hidden');
@@ -2423,10 +2629,12 @@
         this.sound.select();
         this.player.name = name;
         this.player.isAdmin = isAdminKey;
+        this.loggedIn = true;
 
         // Actualizar HUD
         document.getElementById('hudPlayerName').textContent = name;
         document.getElementById('hudAvatar').textContent = name.charAt(0).toUpperCase();
+        document.getElementById('hudUserId').textContent = this.player.id;
         const roleTag = document.getElementById('hudRoleTag');
 
         const adminBar = document.getElementById('adminControlBar');
@@ -2441,7 +2649,12 @@
           waitingAdminActions.classList.remove('hidden');
           waitingSpinner.classList.add('hidden');
           waitingStatusText.textContent = 'Panel de Sala de Espera. Presiona "Iniciar Quiz Ahora" cuando los jugadores estén listos.';
-          this.sync.setSessionState({ status: 'WAITING', currentRound: 0, duration: this.roundDurationSec });
+          await this.sync.setSessionState({
+            status: 'WAITING',
+            currentRound: 0,
+            duration: this.roundDurationSec,
+            roundActionId: Date.now()
+          });
         } else {
           roleTag.textContent = 'JUGADOR';
           roleTag.className = 'text-[10px] uppercase tracking-wider px-2 py-0.5 rounded bg-purple-500/30 text-purple-200 border border-purple-400/30 font-semibold';
@@ -2454,7 +2667,7 @@
 
         this.scoreSystem.reset();
         this.updateHudScoreAndStreak();
-        this.syncPlayerState();
+        await this.syncPlayerState();
 
         // Mostrar Sala de Espera
         document.getElementById('screenLogin').classList.add('hidden');
@@ -2465,7 +2678,10 @@
         const sessionState = this.sync.getSessionState();
         if (!isAdminKey && sessionState.status === 'IN_GAME') {
           this.roundDurationSec = sessionState.duration || 30;
+          this.lastHandledActionId = sessionState.roundActionId || 0;
           this.startQuizSession(sessionState.currentRound || 0);
+        } else if (!isAdminKey && sessionState.status === 'PODIUM') {
+          this.showFinalPodium();
         }
       }
 
@@ -2506,11 +2722,16 @@
         document.getElementById('hudAnsweredRatio').textContent = `${answeredCount}/${totalPlayers}`;
       }
 
-      adminStartQuiz() {
-        this.sync.resetAllPlayersAnsweredStatus();
-        this.sync.setSessionState({ status: 'IN_GAME', currentRound: 0, duration: this.roundDurationSec });
+      async adminStartQuiz() {
+        const actionId = Date.now();
+        this.lastHandledActionId = actionId;
+        await this.sync.setSessionState({
+          status: 'IN_GAME',
+          currentRound: 0,
+          duration: this.roundDurationSec,
+          roundActionId: actionId
+        });
         this.startQuizSession(0);
-        this.sync.broadcast('ADMIN_START_QUIZ', { duration: this.roundDurationSec });
       }
 
       startQuizSession(startRound = 0) {
@@ -2523,20 +2744,25 @@
         this.loadRound(startRound);
       }
 
-      handleAdminAdvanceAction() {
+      async handleAdminAdvanceAction() {
         if (!this.gameStarted) {
-          this.adminStartQuiz();
+          await this.adminStartQuiz();
           return;
         }
         if (!this.roundEvaluated) {
-          // Si la ronda sigue corriendo, el Admin puede finalizar el tiempo y evaluar
+          // Si la ronda sigue corriendo, el Admin puede finalizar el tiempo y evaluar para todos
+          const actionId = Date.now();
+          this.lastHandledActionId = actionId;
+          await this.sync.setSessionState({
+            status: 'REVEALED',
+            currentRound: this.currentRound,
+            roundActionId: actionId
+          });
           this.triggerTimeZeroSequence();
-          this.sync.broadcast('ADMIN_REVEAL', { round: this.currentRound });
           return;
         }
         // Si ya estamos viendo los resultados de la ronda + Top 10, avanzar al siguiente juego
-        this.advanceToNextRound();
-        this.sync.broadcast('ADMIN_NEXT_ROUND', { nextRound: this.currentRound });
+        await this.advanceToNextRound();
       }
 
       /**
@@ -2856,16 +3082,28 @@
         }
       }
 
-      advanceToNextRound() {
+      async advanceToNextRound() {
+        const actionId = Date.now();
+        this.lastHandledActionId = actionId;
+
         if (this.currentRound < 4) {
           const nextRound = this.currentRound + 1;
           if (this.player.isAdmin) {
-            this.sync.setSessionState({ status: 'IN_GAME', currentRound: nextRound });
+            await this.sync.setSessionState({
+              status: 'IN_GAME',
+              currentRound: nextRound,
+              duration: this.roundDurationSec,
+              roundActionId: actionId
+            });
           }
           this.loadRound(nextRound);
         } else {
           if (this.player.isAdmin) {
-            this.sync.setSessionState({ status: 'PODIUM', currentRound: 5 });
+            await this.sync.setSessionState({
+              status: 'PODIUM',
+              currentRound: 5,
+              roundActionId: actionId
+            });
           }
           this.showFinalPodium();
         }
@@ -3016,9 +3254,9 @@
         this.renderWaitingRoomUI();
       }
 
-      syncPlayerState() {
+      async syncPlayerState() {
         if (!this.player.name || this.player.isAdmin) return;
-        this.sync.upsertPlayer({
+        await this.sync.upsertPlayer({
           id: this.player.id,
           name: this.player.name,
           isAdmin: false,
@@ -3031,42 +3269,72 @@
       }
 
       /**
-       * Manejo de eventos sincronizados entre pestañas (BroadcastChannel + LocalStorage)
+       * Manejo de eventos globales en tiempo real desde la Nube (Firestore / Broker WSS Global)
        */
-      handleSyncMessage(msg) {
-        const { type, payload } = msg;
-        if (type === 'ADMIN_SET_TIME') {
-          this.roundDurationSec = payload.duration;
-          document.getElementById('adminTimeSelect').value = String(payload.duration);
-        } else if (type === 'ADMIN_START_QUIZ') {
-          if (!document.getElementById('screenLogin').classList.contains('hidden')) return;
-          this.roundDurationSec = payload.duration || this.roundDurationSec;
-          this.startQuizSession(0);
-        } else if (type === 'ADMIN_REVEAL') {
-          if (this.gameStarted && this.currentRound === payload.round && !this.roundEvaluated) {
+      handleRemoteSessionState(state) {
+        if (!state) return;
+
+        // Actualizar selector de tiempo si cambió
+        if (state.duration && state.duration !== this.roundDurationSec) {
+          this.roundDurationSec = state.duration;
+          const selectEl = document.getElementById('adminTimeSelect');
+          if (selectEl) selectEl.value = String(state.duration);
+        }
+
+        // Si el Admin reinició la sesión general
+        if (state.sessionId && state.sessionId !== this.currentSessionId) {
+          this.currentSessionId = state.sessionId;
+          if (this.loggedIn && state.status === 'WAITING') {
+            this.restartToWaitingRoom();
+            return;
+          }
+        }
+
+        if (!this.loggedIn) return;
+
+        // Evitar reprocesar la misma acción en el cliente que la emitió
+        if (state.roundActionId && state.roundActionId === this.lastHandledActionId) {
+          return;
+        }
+        this.lastHandledActionId = state.roundActionId || 0;
+
+        if (state.status === 'WAITING') {
+          if (this.gameStarted) {
+            this.restartToWaitingRoom();
+          }
+        } else if (state.status === 'IN_GAME') {
+          const targetRound = state.currentRound || 0;
+          if (!this.gameStarted) {
+            this.startQuizSession(targetRound);
+          } else if (this.currentRound !== targetRound || this.roundEvaluated) {
+            this.loadRound(targetRound);
+          }
+        } else if (state.status === 'REVEALED') {
+          if (this.gameStarted && !this.roundEvaluated && this.currentRound === state.currentRound) {
             this.triggerTimeZeroSequence();
           }
-        } else if (type === 'ADMIN_NEXT_ROUND') {
-          if (!this.gameStarted) return;
-          if (!this.roundEvaluated) this.evaluateCurrentRound();
-          this.advanceToNextRound();
-        } else if (type === 'QUESTIONS_UPDATED') {
-          this.quizData.questions = payload.questions;
-          if (this.gameStarted && !this.roundEvaluated && this.currentRound < 5) {
-            this.loadRound(this.currentRound);
+        } else if (state.status === 'PODIUM') {
+          if (this.gameStarted) {
+            this.showFinalPodium();
           }
-        } else if (type === 'PLAYERS_UPDATED') {
-          this.renderWaitingRoomUI();
-          this.updateLiveCountersUI();
-          if (!document.getElementById('screenRoundResults').classList.contains('hidden')) {
-            this.renderTop10Intermission();
-          }
-          if (!document.getElementById('screenPodium').classList.contains('hidden')) {
-            this.renderPodiumUI();
-          }
-        } else if (type === 'ADMIN_RESTART') {
-          if (!document.getElementById('screenLogin').classList.contains('hidden')) return;
-          this.restartToWaitingRoom();
+        }
+      }
+
+      handleRemoteQuestions(questions) {
+        this.quizData.setQuestions(questions);
+        if (this.gameStarted && !this.roundEvaluated && this.currentRound < 5) {
+          this.loadRound(this.currentRound);
+        }
+      }
+
+      handleRemotePlayersUpdated() {
+        this.renderWaitingRoomUI();
+        this.updateLiveCountersUI();
+        if (!document.getElementById('screenRoundResults').classList.contains('hidden')) {
+          this.renderTop10Intermission();
+        }
+        if (!document.getElementById('screenPodium').classList.contains('hidden')) {
+          this.renderPodiumUI();
         }
       }
 
