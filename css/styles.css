@@ -1,0 +1,62 @@
+body {
+  font-family: 'Inter', sans-serif;
+  background: radial-gradient(circle at 50% 20%, #2e1065 0%, #0f172a 70%, #020617 100%);
+  min-height: 100vh;
+  overflow-x: hidden;
+  user-select: none;
+}
+
+.font-arcade {
+  font-family: 'Fredoka', sans-serif;
+}
+
+/* Botones 3D estilo Arcade / Kahoot */
+.btn-3d {
+  transition: transform 0.1s ease, box-shadow 0.1s ease, filter 0.15s ease;
+}
+.btn-3d:active:not(:disabled) {
+  transform: translateY(4px);
+}
+
+.card-red {
+  background: linear-gradient(180deg, #ff2a4b 0%, #e21b3c 100%);
+  box-shadow: 0 6px 0 #990f26, 0 10px 20px rgba(226, 27, 60, 0.35);
+}
+.card-blue {
+  background: linear-gradient(180deg, #227df0 0%, #1368ce 100%);
+  box-shadow: 0 6px 0 #0b4182, 0 10px 20px rgba(19, 104, 206, 0.35);
+}
+.card-yellow {
+  background: linear-gradient(180deg, #f5b60a 0%, #d89e00 100%);
+  box-shadow: 0 6px 0 #8f6800, 0 10px 20px rgba(216, 158, 0, 0.35);
+}
+.card-green {
+  background: linear-gradient(180deg, #32ab13 0%, #26890c 100%);
+  box-shadow: 0 6px 0 #165206, 0 10px 20px rgba(38, 137, 12, 0.35);
+}
+
+/* Animación de fuego para racha */
+@keyframes flamePulse {
+  0%, 100% { transform: scale(1) rotate(-2deg); filter: drop-shadow(0 0 8px #f97316); }
+  50% { transform: scale(1.08) rotate(2deg); filter: drop-shadow(0 0 16px #ef4444); }
+}
+.streak-fire {
+  animation: flamePulse 0.9s infinite ease-in-out;
+}
+
+/* Animación de entrada de podio */
+@keyframes riseUp {
+  from { transform: translateY(100%); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+.podium-bar {
+  animation: riseUp 0.8s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+/* Canvas responsivo */
+canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  touch-action: none;
+}
