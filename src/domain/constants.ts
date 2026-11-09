@@ -1,0 +1,12 @@
+export const PUNTOS_BASE = 100;
+export const MULTIPLICADOR_RACHA = 1.5;
+export const RACHA_MINIMA = 2;
+export const MAX_JUGADORES = 50;
+export const TOTAL_PREGUNTAS = 5;
+export const MIN_NOMBRE = 2;
+export const MAX_NOMBRE = 30;
+export const CODIGO_SALA_LONGITUD = 6;
+export const DURACION_POR_DEFECTO = 30;
+export const DURACIONES_PERMITIDAS = [15, 30, 45, 60] as const;
+export const INDICE_SIN_RESPUESTA = -1;
+export const TIPOS_MINIJUEGO = ['kahoot', 'plataformas', 'nave', 'cintas', 'canon'] as const;
