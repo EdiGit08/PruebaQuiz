@@ -181,6 +181,16 @@ export class SupabaseQuizGateway
     return mapearPreguntasAdminJson(this.requerirDatos(data));
   }
 
+  async buscarSalaAdmin(codigo: string): Promise<Sala | null> {
+    const consulta = this.supabase
+      .from('salas')
+      .select('*')
+      .eq('codigo', codigo)
+      .maybeSingle();
+    const data = await this.consultaSegura<SalaRow>(consulta);
+    return data ? mapearSala(data) : null;
+  }
+
   async horaServidor(): Promise<string> {
     const data = await this.rpcSeguro<string>(this.supabase.rpc('hora_servidor'));
     return this.requerirDatos(data);

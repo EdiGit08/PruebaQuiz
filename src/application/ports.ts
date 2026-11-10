@@ -62,6 +62,7 @@ export interface PuertoAdmin {
   expulsarJugador(salaId: string, jugadorId: string): Promise<void>;
   purgarSala(salaId: string): Promise<void>;
   obtenerPreguntasAdmin(salaId: string): Promise<PreguntaAdmin[]>;
+  buscarSalaAdmin(codigo: string): Promise<Sala | null>;
 }
 
 export interface PuertoRelojServidor {

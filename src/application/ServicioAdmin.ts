@@ -1,4 +1,4 @@
-import { validarPreguntas } from '../domain';
+import { ErrorDominio, normalizarCodigoSala, validarPreguntas } from '../domain';
 import type { PreguntaAdmin, PreguntaEditable, Sala } from '../domain';
 import type { PuertoAdmin, ResultadoRevelado } from './ports';
 import { validarDuracion } from './validaciones';
@@ -45,5 +45,13 @@ export class ServicioAdmin {
 
   async obtenerPreguntas(salaId: string): Promise<PreguntaAdmin[]> {
     return this.admin.obtenerPreguntasAdmin(salaId);
+  }
+
+  async buscarPorCodigo(codigo: string): Promise<Sala | null> {
+    const normalizado = normalizarCodigoSala(codigo);
+    if (!normalizado) {
+      throw new ErrorDominio('CODIGO_INVALIDO', 'El código debe tener 6 caracteres.');
+    }
+    return this.admin.buscarSalaAdmin(normalizado);
   }
 }

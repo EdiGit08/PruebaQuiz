@@ -85,7 +85,8 @@ function crearPuertoAdmin() {
     reiniciarSala: vi.fn(async () => sala),
     expulsarJugador: vi.fn(async () => undefined),
     purgarSala: vi.fn(async () => undefined),
-    obtenerPreguntasAdmin: vi.fn(async () => [])
+    obtenerPreguntasAdmin: vi.fn(async () => []),
+    buscarSalaAdmin: vi.fn(async () => sala)
   } satisfies PuertoAdmin;
 }
 
@@ -201,6 +202,25 @@ describe('ServicioAdmin', () => {
     await servicio.guardarPreguntas('sala-1', preguntas);
 
     expect(puerto.guardarPreguntas).toHaveBeenCalledWith('sala-1', preguntas);
+  });
+
+  it('normaliza el código al buscar una sala', async () => {
+    const puerto = crearPuertoAdmin();
+    const servicio = new ServicioAdmin(puerto);
+
+    await servicio.buscarPorCodigo(' abc123 ');
+
+    expect(puerto.buscarSalaAdmin).toHaveBeenCalledWith('ABC123');
+  });
+
+  it('rechaza códigos inválidos al buscar una sala', async () => {
+    const puerto = crearPuertoAdmin();
+    const servicio = new ServicioAdmin(puerto);
+
+    await expect(servicio.buscarPorCodigo('123')).rejects.toMatchObject({
+      codigo: 'CODIGO_INVALIDO'
+    });
+    expect(puerto.buscarSalaAdmin).not.toHaveBeenCalled();
   });
 });
 

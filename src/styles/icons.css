@@ -1,0 +1,65 @@
+@font-face {
+  font-family: 'Phosphor-Bold';
+  src: url('../../node_modules/@phosphor-icons/web/src/bold/Phosphor-Bold.woff2') format('woff2');
+  font-weight: normal;
+  font-style: normal;
+  font-display: block;
+}
+
+@font-face {
+  font-family: 'Phosphor-Fill';
+  src: url('../../node_modules/@phosphor-icons/web/src/fill/Phosphor-Fill.woff2') format('woff2');
+  font-weight: normal;
+  font-style: normal;
+  font-display: block;
+}
+
+.ph-bold,
+.ph-fill {
+  speak: never;
+  font-style: normal;
+  font-weight: normal;
+  font-variant: normal;
+  text-transform: none;
+  line-height: 1;
+  letter-spacing: 0;
+  -webkit-font-feature-settings: 'liga';
+  font-feature-settings: 'liga';
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.ph-bold {
+  font-family: 'Phosphor-Bold' !important;
+}
+
+.ph-fill {
+  font-family: 'Phosphor-Fill' !important;
+}
+
+.ph-bold.ph-arrow-counter-clockwise:before { content: '\e038'; }
+.ph-bold.ph-arrow-down:before { content: '\e03e'; }
+.ph-bold.ph-arrow-left:before { content: '\e058'; }
+.ph-bold.ph-arrow-right:before { content: '\e06c'; }
+.ph-bold.ph-arrows-clockwise:before { content: '\e094'; }
+.ph-bold.ph-arrow-up:before { content: '\e08e'; }
+.ph-bold.ph-floppy-disk:before { content: '\e248'; }
+.ph-bold.ph-lightning:before { content: '\e2de'; }
+.ph-bold.ph-pencil-simple:before { content: '\e3b4'; }
+.ph-bold.ph-play:before { content: '\e3d0'; }
+.ph-bold.ph-sign-out:before { content: '\e42a'; }
+.ph-bold.ph-spinner:before { content: '\e66a'; }
+.ph-bold.ph-users:before { content: '\e4d6'; }
+.ph-bold.ph-x:before { content: '\e4f6'; }
+
+.ph-fill.ph-check-circle:before { content: '\e184'; }
+.ph-fill.ph-copy:before { content: '\e1ca'; }
+.ph-fill.ph-crown:before { content: '\e614'; }
+.ph-fill.ph-game-controller:before { content: '\e26e'; }
+.ph-fill.ph-info:before { content: '\e2ce'; }
+.ph-fill.ph-lightning:before { content: '\e2de'; }
+.ph-fill.ph-speaker-high:before { content: '\e44a'; }
+.ph-fill.ph-speaker-slash:before { content: '\e45a'; }
+.ph-fill.ph-timer:before { content: '\e492'; }
+.ph-fill.ph-trophy:before { content: '\e67e'; }
+.ph-fill.ph-users:before { content: '\e4d6'; }
