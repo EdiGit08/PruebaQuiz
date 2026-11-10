@@ -16,7 +16,7 @@
     "db:reset": "supabase db reset",
     "db:test": "supabase test db",
     "db:lint": "supabase db lint",
-    "load:test": "node scripts/load-test.mjs"
+    "load:test": "node --env-file-if-exists=.env.local scripts/load-test.mjs"
   },
   "dependencies": {
     "@fontsource/fredoka": "^5.1.0",
