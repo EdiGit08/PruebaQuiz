@@ -31,11 +31,11 @@ import {
 import type { PreguntaMinijuego } from './minigames/types';
 
 const TITULOS: Record<TipoMinijuego, string> = {
-  kahoot: 'Kahoot Clásico',
+  kahoot: 'Kahoot clásico',
   plataformas: 'Plataformas 2D',
-  nave: 'Nave Espacial',
-  cintas: 'Cintas Transportadoras',
-  canon: 'El Cañón'
+  nave: 'Nave espacial',
+  cintas: 'Cintas transportadoras',
+  canon: 'El cañón'
 };
 
 interface ResultadoRonda {
@@ -83,7 +83,7 @@ export class AppController {
   async iniciar(): Promise<void> {
     this.registrarEventos();
     this.iniciarAnimacion();
-    this.actualizarConexion(true, 'Conectado a Supabase');
+    this.actualizarConexion(true, 'Todo listo para jugar');
     try {
       const sesion = await this.servicios.sesion.restaurar();
       if (!sesion) {
@@ -449,7 +449,7 @@ export class AppController {
         void this.refrescarJugadores();
       },
       alCambiarConexion: (conectado) => {
-        this.actualizarConexion(conectado, conectado ? 'Conectado a Supabase' : 'Reconectando...');
+        this.actualizarConexion(conectado, conectado ? 'Todo listo para jugar' : 'Reconectando...');
       },
       alError: (error) => {
         this.mostrarError(error);
@@ -548,13 +548,13 @@ export class AppController {
   }
 
   private actualizarCabecera(ronda: number): void {
-    const titulo = this.preguntaActual ? TITULOS[this.preguntaActual.tipoMinijuego] : `Juego ${ronda + 1}`;
-    establecerTexto('badgeRoundNumber', `RONDA ${ronda + 1}/${TOTAL_PREGUNTAS}`);
+    const titulo = this.preguntaActual ? TITULOS[this.preguntaActual.tipoMinijuego] : `Reto ${ronda + 1}`;
+    establecerTexto('badgeRoundNumber', `RETO ${ronda + 1}/${TOTAL_PREGUNTAS}`);
     establecerTexto('badgeMiniGameType', titulo);
-    establecerTexto('hudGameTitle', `Juego ${ronda + 1} de ${TOTAL_PREGUNTAS}`);
+    establecerTexto('hudGameTitle', `Reto ${ronda + 1} de ${TOTAL_PREGUNTAS}`);
     establecerTexto('questionHeading', this.preguntaActual?.texto ?? '');
     establecerTexto('timerNumber', `${this.sala?.duracionSeg ?? DURACION_POR_DEFECTO}s`);
-    this.actualizarChip('En curso - ¡Selecciona tu respuesta!', 'verde');
+    this.actualizarChip('En curso · Elige una opción', 'verde');
     this.actualizarBotonAdmin();
   }
 
@@ -702,7 +702,7 @@ export class AppController {
       puntos,
       correcta: pregunta.opciones[correcta] ?? ''
     };
-    this.actualizarChip('Ronda revelada', 'azul');
+    this.actualizarChip('Reto revelado', 'azul');
     this.actualizarBotonAdmin();
     window.setTimeout(() => {
       if (this.sala?.estado === 'REVEALED' && this.rondaEvaluada) this.mostrarResultados();
@@ -720,7 +720,7 @@ export class AppController {
   private onSeleccion(indice: number | null): void {
     if (!this.puedeResponder()) return;
     if (indice === null) {
-      this.actualizarChip('Selección restaurada - ¡Elige de nuevo!', 'ambar');
+      this.actualizarChip('Selección restaurada · Elige de nuevo', 'ambar');
     } else {
       this.actualizarChip(`Opción ${indice + 1} seleccionada`, 'indigo');
     }
@@ -765,7 +765,7 @@ export class AppController {
       }
     } catch (error) {
       if (error instanceof ErrorDominio && (error.codigo === 'FUERA_DE_TIEMPO' || error.codigo === 'RONDA_NO_ACTIVA')) {
-        this.actualizarChip('El tiempo de la ronda terminó', 'ambar');
+        this.actualizarChip('Se acabó el tiempo del reto', 'ambar');
       } else {
         this.mostrarError(error);
       }
@@ -786,19 +786,19 @@ export class AppController {
 
     if (this.esAdmin) {
       tarjeta.className =
-        'rounded-2xl p-5 border bg-blue-950/90 border-blue-400/50 text-center shadow-lg';
+        'rounded-2xl border border-sky-400/40 bg-sky-500/10 p-5 text-center shadow-lg';
       icono.textContent = '📊';
       titulo.textContent = `Respuesta correcta: "${resultado.correcta}"`;
       subtitulo.textContent = 'Los jugadores ya pueden ver su resultado. Avanza cuando estés listo.';
     } else if (resultado.acierto) {
       tarjeta.className =
-        'rounded-2xl p-5 border bg-emerald-950/90 border-emerald-400/50 text-center shadow-lg';
+        'rounded-2xl border border-mint-400/50 bg-mint-500/10 p-5 text-center shadow-lg';
       icono.textContent = '🎉';
       titulo.textContent = `¡Respuesta correcta! +${resultado.puntos} pts`;
       subtitulo.textContent = `Sumaste ${resultado.puntos} puntos a tu puntaje total`;
     } else {
       tarjeta.className =
-        'rounded-2xl p-5 border bg-rose-950/90 border-rose-400/50 text-center shadow-lg';
+        'rounded-2xl border border-coral-400/50 bg-coral-500/10 p-5 text-center shadow-lg';
       icono.textContent = '💥';
       titulo.textContent = this.miRespuesta ? 'Respuesta incorrecta (+0 pts)' : 'Sin respuesta (+0 pts)';
       subtitulo.textContent = `La opción correcta era: "${resultado.correcta}"`;
@@ -814,7 +814,7 @@ export class AppController {
 
     mostrar(porId('btnIntermissionNextAdmin'), this.esAdmin);
     mostrar(porId('intermissionWaitingMsg'), !this.esAdmin);
-    establecerTexto('intermissionRoundLabel', `Ronda ${(this.sala?.rondaActual ?? 0) + 1} de ${TOTAL_PREGUNTAS}`);
+    establecerTexto('intermissionRoundLabel', `Reto ${(this.sala?.rondaActual ?? 0) + 1} de ${TOTAL_PREGUNTAS}`);
     this.renderTop10();
   }
 
@@ -836,25 +836,25 @@ export class AppController {
   private crearFilaRanking(jugador: Jugador, indice: number, mostrarRachaMax: boolean): HTMLElement {
     const fila = crear(
       'div',
-      `px-4 py-2.5 flex items-center justify-between ${jugador.id === this.jugador?.id ? 'bg-purple-900/35' : ''}`
+      `flex items-center justify-between px-4 py-2.5 ${jugador.id === this.jugador?.id ? 'bg-mint-500/10' : ''}`
     );
-    const izquierda = crear('div', 'flex items-center gap-3 min-w-0');
+    const izquierda = crear('div', 'flex min-w-0 items-center gap-3');
     izquierda.appendChild(this.crearInsigniaPuesto(indice));
-    izquierda.appendChild(crear('span', 'font-bold text-white text-sm truncate', jugador.nombre));
+    izquierda.appendChild(crear('span', 'truncate text-sm font-bold text-cream', jugador.nombre));
     if (jugador.id === this.jugador?.id) {
       izquierda.appendChild(
-        crear('span', 'text-[10px] px-2 py-0.5 rounded bg-purple-500/30 text-purple-200 font-bold', 'TÚ')
+        crear('span', 'rounded bg-mint-500/20 px-2 py-0.5 text-[10px] font-bold text-mint-300', 'TÚ')
       );
     }
-    const derecha = crear('div', 'flex items-center gap-3 shrink-0');
+    const derecha = crear('div', 'flex shrink-0 items-center gap-3');
     if (mostrarRachaMax) {
       derecha.appendChild(
-        crear('span', 'text-xs text-orange-300 font-semibold', `Racha máx: x${jugador.rachaMax}`)
+        crear('span', 'text-xs font-semibold text-sun-300', `Mejor racha: x${jugador.rachaMax}`)
       );
     } else if (jugador.racha >= 2) {
-      derecha.appendChild(crear('span', 'text-xs text-orange-400 font-bold', `🔥 x${jugador.racha}`));
+      derecha.appendChild(crear('span', 'text-xs font-bold text-coral-400', `🔥 x${jugador.racha}`));
     }
-    derecha.appendChild(crear('span', 'font-arcade text-sm sm:text-base text-amber-300', `${jugador.puntaje} pts`));
+    derecha.appendChild(crear('span', 'font-arcade text-sm text-sun-300 sm:text-base', `${jugador.puntaje} pts`));
     fila.append(izquierda, derecha);
     return fila;
   }
@@ -862,12 +862,12 @@ export class AppController {
   private crearInsigniaPuesto(indice: number): HTMLElement {
     const clase =
       indice === 0
-        ? 'bg-amber-400 text-slate-950'
+        ? 'bg-sun-400 text-night-950'
         : indice === 1
-          ? 'bg-slate-300 text-slate-900'
+          ? 'bg-slate-300 text-night-950'
           : indice === 2
-            ? 'bg-amber-700 text-white'
-            : 'bg-slate-800 text-slate-300';
+            ? 'bg-coral-500 text-night-950'
+            : 'bg-night-700 text-slate-300';
     return crear(
       'span',
       `w-6 h-6 rounded-lg ${clase} font-arcade text-xs flex items-center justify-center font-bold shrink-0`,
@@ -907,10 +907,10 @@ export class AppController {
   private crearPedestal(jugador: Jugador | null, posicion: number): HTMLElement {
     const colores =
       posicion === 1
-        ? { alto: 'h-40 sm:h-52', fondo: 'from-amber-300 via-amber-400 to-amber-600', medalla: 'bg-amber-400 text-slate-950' }
+        ? { alto: 'h-40 sm:h-52', fondo: 'from-sun-300 via-sun-400 to-sun-500', medalla: 'bg-sun-400 text-night-950' }
         : posicion === 2
-          ? { alto: 'h-28 sm:h-36', fondo: 'from-slate-300 to-slate-500', medalla: 'bg-slate-300 text-slate-900' }
-          : { alto: 'h-20 sm:h-28', fondo: 'from-amber-600 to-amber-800', medalla: 'bg-amber-700 text-amber-100' };
+          ? { alto: 'h-28 sm:h-36', fondo: 'from-slate-200 to-slate-400', medalla: 'bg-slate-300 text-night-950' }
+          : { alto: 'h-20 sm:h-28', fondo: 'from-coral-400 to-coral-600', medalla: 'bg-coral-500 text-night-950' };
     const contenedor = crear('div', 'flex flex-col items-center min-w-0');
     const info = crear('div', 'text-center mb-2 min-w-0');
     const medalla = crear(
@@ -922,22 +922,22 @@ export class AppController {
     info.appendChild(
       crear(
         'p',
-        `font-bold text-white text-xs sm:text-sm truncate max-w-[110px] sm:max-w-[150px] ${posicion === 1 ? 'text-amber-300' : ''}`,
+        `max-w-[110px] truncate text-xs font-bold text-cream sm:max-w-[150px] sm:text-sm ${posicion === 1 ? 'text-sun-300' : ''}`,
         jugador?.nombre ?? 'Vacante'
       )
     );
     info.appendChild(
-      crear('span', 'font-arcade text-amber-200 text-sm sm:text-base', `${jugador?.puntaje ?? 0} pts`)
+      crear('span', 'font-arcade text-sm text-sun-200 sm:text-base', `${jugador?.puntaje ?? 0} pts`)
     );
     info.appendChild(
-      crear('span', 'block text-[10px] text-amber-300', `Racha máx: x${jugador?.rachaMax ?? 0}`)
+      crear('span', 'block text-[10px] text-sun-300', `Mejor racha: x${jugador?.rachaMax ?? 0}`)
     );
     const barra = crear(
       'div',
       `podium-bar w-full ${colores.alto} rounded-t-2xl bg-gradient-to-b ${colores.fondo} border-t-4 border-white/80 flex items-center justify-center shadow-xl`,
       `${posicion}º`
     );
-    barra.classList.add('font-arcade', 'text-3xl', 'text-slate-950', 'font-bold');
+    barra.classList.add('font-arcade', 'text-3xl', 'text-night-950', 'font-bold');
     contenedor.append(info, barra);
     return contenedor;
   }
@@ -1042,15 +1042,15 @@ export class AppController {
     limpiar(grid);
     if (this.jugadores.length === 0) {
       grid.appendChild(
-        crear('span', 'text-xs text-slate-500 py-4', 'Aún no hay jugadores conectados en esta sala...')
+        crear('span', 'py-4 text-xs text-slate-500', 'Aún no hay jugadores conectados en esta sala...')
       );
     } else {
       this.jugadores.forEach((jugador) => {
         const chip = crear(
           'div',
-          'px-3.5 py-1.5 rounded-xl bg-slate-800 border border-white/10 text-xs sm:text-sm font-bold text-white flex items-center gap-2 shadow'
+          'flex items-center gap-2 rounded-xl border border-night-700 bg-night-800 px-3.5 py-1.5 text-xs font-bold text-cream shadow sm:text-sm'
         );
-        chip.appendChild(crear('span', 'w-2 h-2 rounded-full bg-emerald-400'));
+        chip.appendChild(crear('span', 'h-2 w-2 rounded-full bg-mint-400'));
         chip.appendChild(crear('span', '', jugador.nombre));
         grid.appendChild(chip);
       });
@@ -1060,8 +1060,8 @@ export class AppController {
     establecerTexto(
       'waitingRoomStatusText',
       this.esAdmin
-        ? 'Comparte el código. Presiona "Iniciar quiz" cuando todos estén listos.'
-        : 'Esperando a que el administrador inicie el quiz...'
+        ? 'Comparte el código. Presiona "Iniciar reto" cuando todos estén listos.'
+        : 'Esperando a que el administrador inicie el reto...'
     );
     this.actualizarBotonAdmin();
   }
@@ -1079,25 +1079,25 @@ export class AppController {
     ranking.forEach((jugador) => {
       const fila = crear(
         'div',
-        'flex items-center justify-between gap-3 bg-slate-950/80 border border-white/10 rounded-xl px-3 py-2.5'
+        'flex items-center justify-between gap-3 rounded-xl border border-night-700 bg-night-950/80 px-3 py-2.5'
       );
-      const info = crear('div', 'flex items-center gap-2.5 min-w-0');
+      const info = crear('div', 'flex min-w-0 items-center gap-2.5');
       info.appendChild(
         crear(
           'span',
-          'w-9 h-9 rounded-lg bg-gradient-to-br from-purple-500 to-indigo-600 flex items-center justify-center font-arcade text-sm text-white shrink-0',
+          'grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-mint-500 font-arcade text-sm text-night-950',
           jugador.nombre.charAt(0).toUpperCase()
         )
       );
       const datos = crear('div', 'min-w-0');
-      datos.appendChild(crear('p', 'font-bold text-white text-sm truncate', jugador.nombre));
+      datos.appendChild(crear('p', 'truncate text-sm font-bold text-cream', jugador.nombre));
       datos.appendChild(
         crear('p', 'text-[11px] text-slate-400', `${jugador.puntaje} pts · Racha x${jugador.racha}`)
       );
       info.appendChild(datos);
       const boton = crear(
         'button',
-        'shrink-0 px-3 py-1.5 rounded-lg bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold transition',
+        'shrink-0 rounded-lg bg-coral-500 px-3 py-1.5 text-xs font-bold text-night-950 transition hover:bg-coral-400',
         'Quitar'
       );
       boton.type = 'button';
@@ -1153,12 +1153,12 @@ export class AppController {
     this.preguntasAdmin.forEach((_pregunta, indice) => {
       const boton = crear(
         'button',
-        `px-3.5 py-2 rounded-t-xl text-xs font-bold transition ${
+        `rounded-t-xl px-3.5 py-2 text-xs font-bold transition ${
           indice === this.editorTab
-            ? 'bg-amber-500 text-slate-950'
-            : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
+            ? 'bg-sun-400 text-night-950'
+            : 'bg-night-800 text-slate-300 hover:bg-night-700'
         }`,
-        `Juego ${indice + 1}`
+        `Reto ${indice + 1}`
       );
       boton.type = 'button';
       boton.addEventListener('click', () => {
@@ -1227,14 +1227,14 @@ export class AppController {
     if (!sala) return;
     const etiqueta =
       sala.estado === 'WAITING'
-        ? 'Iniciar Quiz'
+        ? 'Iniciar reto'
         : sala.estado === 'IN_GAME'
-          ? 'Evaluar Ronda Ahora'
+          ? 'Evaluar reto ahora'
           : sala.estado === 'REVEALED'
             ? sala.rondaActual >= TOTAL_PREGUNTAS - 1
-              ? 'Ver Podio Final'
-              : 'Siguiente Juego'
-            : 'Jugar de Nuevo';
+              ? 'Ver podio final'
+              : 'Siguiente reto'
+            : 'Jugar de nuevo';
     establecerTexto('btnAdminNextLabel', etiqueta);
     establecerTexto('btnIntermissionNextText', etiqueta);
     porId<HTMLSelectElement>('adminTimeSelect').disabled = sala.estado !== 'WAITING';
@@ -1274,24 +1274,24 @@ export class AppController {
     if (jugador.racha >= 2) {
       icono.textContent = '🔥';
       contenedor.className =
-        'streak-fire flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-orange-600/40 to-red-600/40 border border-orange-400 text-xs sm:text-sm font-bold text-white';
+        'streak-fire inline-flex items-center gap-1.5 rounded-full border border-coral-400/50 bg-coral-500/15 px-3 py-1 text-xs font-semibold text-cream sm:text-sm';
     } else {
       icono.textContent = '⚡';
       contenedor.className =
-        'flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-800/90 border border-slate-700 text-xs sm:text-sm font-bold';
+        'inline-flex items-center gap-1.5 rounded-full border border-night-700 bg-night-800/90 px-3 py-1 text-xs font-semibold text-slate-300 sm:text-sm';
     }
   }
 
   private actualizarChip(texto: string, color: 'verde' | 'ambar' | 'indigo' | 'azul'): void {
     const chip = porId('roundStatusChip');
     const colores: Record<typeof color, string> = {
-      verde: 'bg-emerald-500/20 text-emerald-300 border-emerald-400/30',
-      ambar: 'bg-amber-500/20 text-amber-300 border-amber-400/40',
-      indigo: 'bg-indigo-500/20 text-indigo-200 border-indigo-400/40',
-      azul: 'bg-blue-500/20 text-blue-200 border-blue-400/40'
+      verde: 'border-mint-400/30 bg-mint-500/15 text-mint-300',
+      ambar: 'border-sun-400/40 bg-sun-400/15 text-sun-300',
+      indigo: 'border-sky-400/40 bg-sky-500/15 text-sky-300',
+      azul: 'border-sky-400/40 bg-sky-500/15 text-sky-300'
     };
     chip.textContent = texto;
-    chip.className = `px-2.5 py-0.5 rounded-full text-xs font-bold border ${colores[color]}`;
+    chip.className = `rounded-full border px-2.5 py-0.5 text-xs font-bold ${colores[color]}`;
   }
 
   private mostrarSolo(id: string): void {
@@ -1363,7 +1363,7 @@ export class AppController {
   private alternarSonido(): void {
     const silenciado = this.sound.toggleMute();
     porId('iconSound').className = silenciado
-      ? 'ph-fill ph-speaker-slash text-lg text-rose-400'
+      ? 'ph-fill ph-speaker-slash text-lg text-coral-400'
       : 'ph-fill ph-speaker-high text-lg';
     this.mostrarToast(silenciado ? 'Audio silenciado' : 'Efectos de sonido activados');
   }
@@ -1404,8 +1404,8 @@ export class AppController {
   private actualizarConexion(conectado: boolean, texto: string): void {
     const punto = porId('dbStatusDot');
     punto.className = conectado
-      ? 'w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_8px_#34d399]'
-      : 'w-2 h-2 rounded-full bg-rose-400';
+      ? 'h-2 w-2 rounded-full bg-mint-400 shadow-[0_0_8px_#5fd0b0]'
+      : 'h-2 w-2 rounded-full bg-coral-400';
     establecerTexto('dbStatusText', texto);
   }
 

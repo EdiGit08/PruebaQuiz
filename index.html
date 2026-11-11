@@ -3,281 +3,297 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="description" content="Quiz multijugador en tiempo real" />
-    <title>PruebaQuiz</title>
+    <meta name="theme-color" content="#0b1220" />
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23f26b4a'/%3E%3Ctext x='32' y='43' font-family='Arial' font-size='30' font-weight='700' text-anchor='middle' fill='%230b1220'%3EPQ%3C/text%3E%3C/svg%3E" />
+    <meta name="description" content="PruebaQuiz: trivia arcade para jugar en grupo, con cinco minijuegos y hasta 50 jugadores." />
+    <meta property="og:title" content="PruebaQuiz · Trivia arcade para tu grupo" />
+    <meta property="og:description" content="Cinco minijuegos, una sala y hasta 50 jugadores. Sin descargas, solo ganas de jugar." />
+    <meta property="og:type" content="website" />
+    <title>PruebaQuiz · Trivia arcade para tu grupo</title>
   </head>
-  <body class="min-h-screen bg-slate-950 text-slate-100">
+  <body class="min-h-screen text-cream antialiased">
+    <a href="#mainContent" class="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[60] focus:rounded-xl focus:bg-sun-400 focus:px-4 focus:py-2 focus:font-bold focus:text-night-950">Saltar al contenido</a>
     <div id="app" class="min-h-screen flex flex-col">
-      <header id="adminControlBar" class="hidden sticky top-0 z-40 bg-slate-950/95 backdrop-blur-md border-b border-amber-500/40 px-3 py-2 shadow-2xl">
-        <div class="max-w-6xl mx-auto flex flex-wrap items-center justify-between gap-2">
-          <div class="flex items-center gap-2 text-amber-300 font-arcade text-sm">
-            <i class="ph-fill ph-crown text-lg"></i>
-            <span>PANEL ADMIN</span>
-            <span id="adminSalaCodigo" class="px-2 py-0.5 rounded bg-amber-500/20 border border-amber-400/40 text-xs"></span>
+      <header id="adminControlBar" class="hidden sticky top-0 z-40 border-b border-sun-400/30 bg-night-900/95 px-3 py-2 shadow-panel">
+        <div class="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-2">
+          <div class="flex items-center gap-2 font-arcade text-sm text-sun-300">
+            <span class="grid h-7 w-7 place-items-center rounded-lg bg-sun-400 text-night-950">
+              <i class="ph-fill ph-crown text-base"></i>
+            </span>
+            <span>Panel admin</span>
+            <span id="adminSalaCodigo" class="rounded-md border border-sun-400/30 bg-sun-400/10 px-2 py-0.5 text-xs tracking-widest"></span>
           </div>
           <div class="flex flex-wrap items-center gap-2">
-            <span class="text-xs text-slate-300">Jugadores: <span id="adminBarPlayerCount" class="font-bold text-white">0/50</span></span>
-            <label class="text-xs text-slate-400 flex items-center gap-1">
+            <span class="chip py-1.5">Jugadores <span id="adminBarPlayerCount" class="font-arcade text-cream">0/50</span></span>
+            <label class="chip py-1.5 text-slate-300">
               Tiempo
-              <select id="adminTimeSelect" class="bg-transparent text-amber-300 font-bold focus:outline-none cursor-pointer">
+              <select id="adminTimeSelect" class="cursor-pointer bg-transparent font-bold text-sun-300 focus:outline-none">
                 <option value="15">15s</option>
                 <option value="30" selected>30s</option>
                 <option value="45">45s</option>
                 <option value="60">60s</option>
               </select>
             </label>
-            <button id="btnManagePlayers" type="button" class="px-3 py-1.5 rounded-lg text-xs font-bold bg-slate-700 hover:bg-slate-600 text-white flex items-center gap-1.5 transition shadow">
+            <button id="btnManagePlayers" type="button" class="btn-secondary px-3 py-1.5 text-xs">
               <i class="ph-bold ph-users"></i>
               <span>Jugadores (<span id="adminManagePlayerCount">0</span>)</span>
             </button>
-            <button id="btnOpenQuestionEditor" type="button" class="px-3 py-1.5 rounded-lg text-xs font-bold bg-indigo-600 hover:bg-indigo-500 text-white flex items-center gap-1.5 transition shadow">
+            <button id="btnOpenQuestionEditor" type="button" class="btn-secondary px-3 py-1.5 text-xs">
               <i class="ph-bold ph-pencil-simple"></i>
               <span>Preguntas</span>
             </button>
-            <button id="btnAdminNext" type="button" class="px-3.5 py-1.5 rounded-lg text-xs font-bold bg-emerald-500 hover:bg-emerald-400 text-slate-950 flex items-center gap-1.5 transition shadow-lg">
+            <button id="btnAdminNext" type="button" class="btn-mint px-3.5 py-1.5 text-xs">
               <i class="ph-bold ph-play"></i>
-              <span id="btnAdminNextLabel">Iniciar Quiz</span>
+              <span id="btnAdminNextLabel">Iniciar reto</span>
             </button>
           </div>
         </div>
       </header>
 
-      <nav id="playerHudBar" class="hidden bg-slate-900/80 backdrop-blur-md border-b border-white/10 px-4 py-2.5 z-30">
-        <div class="max-w-6xl mx-auto flex flex-wrap items-center justify-between gap-2">
+      <nav id="playerHudBar" class="hidden z-30 border-b border-mint-400/20 bg-night-900/90 px-4 py-2.5">
+        <div class="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-2">
           <div class="flex items-center gap-2.5">
-            <div id="hudAvatar" class="w-10 h-10 rounded-xl bg-gradient-to-br from-purple-500 to-indigo-600 flex items-center justify-center font-arcade text-lg shadow-inner border border-white/20">?</div>
+            <div id="hudAvatar" class="grid h-10 w-10 place-items-center rounded-xl border border-mint-400/30 bg-mint-500 font-arcade text-lg text-night-950 shadow-inner">?</div>
             <div>
               <div class="flex items-center gap-2">
-                <span id="hudPlayerName" class="font-bold text-white text-sm sm:text-base">Jugador</span>
-                <span class="text-[10px] uppercase tracking-wider px-2 py-0.5 rounded bg-purple-500/30 text-purple-200 border border-purple-400/30 font-semibold">Jugador</span>
+                <span id="hudPlayerName" class="text-sm font-bold text-cream sm:text-base">Jugador</span>
+                <span class="rounded-md border border-mint-400/30 bg-mint-500/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-mint-300">Jugador</span>
               </div>
               <div class="flex items-center gap-3 text-[11px] text-slate-400">
-                <span id="hudGameTitle">Juego 1 de 5</span>
-                <span class="font-mono" title="ID de sesión">ID: <span id="hudUserId">...</span></span>
+                <span id="hudGameTitle">Reto 1 de 5</span>
+                <span class="hidden font-mono sm:inline" title="ID de sesión">ID: <span id="hudUserId">...</span></span>
               </div>
             </div>
           </div>
           <div class="flex flex-wrap items-center gap-2">
-            <div class="px-3 py-1.5 rounded-xl bg-slate-800/90 border border-slate-700 text-xs sm:text-sm font-bold flex items-center gap-1.5">
-              <i class="ph-fill ph-users text-purple-300"></i>
-              <span id="hudActivePlayersCount" class="font-arcade">0</span>
+            <div class="chip py-1.5 text-xs sm:text-sm">
+              <i class="ph-fill ph-users text-mint-300"></i>
+              <span id="hudActivePlayersCount" class="font-arcade text-cream">0</span>
             </div>
-            <div class="px-3 py-1.5 rounded-xl bg-slate-800/90 border border-slate-700 text-xs sm:text-sm font-bold flex items-center gap-1.5">
-              <i class="ph-fill ph-check-circle text-emerald-300"></i>
-              <span id="hudAnsweredRatio" class="font-arcade text-base text-white">0/0</span>
+            <div class="chip py-1.5 text-xs sm:text-sm">
+              <i class="ph-fill ph-check-circle text-mint-300"></i>
+              <span id="hudAnsweredRatio" class="font-arcade text-base text-cream">0/0</span>
             </div>
-            <div id="hudStreakContainer" class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-800/90 border border-slate-700 text-xs sm:text-sm font-bold">
+            <div id="hudStreakContainer" class="chip py-1.5 text-xs sm:text-sm">
               <span id="hudStreakIcon">⚡</span>
-              <span id="hudStreakValue" class="text-amber-400 font-arcade text-base">x0</span>
+              <span id="hudStreakValue" class="font-arcade text-base text-sun-300">x0</span>
             </div>
-            <div class="px-3 py-1.5 rounded-xl bg-slate-800/90 border border-slate-700 flex items-center gap-1.5">
-              <i class="ph-fill ph-trophy text-amber-300"></i>
-              <span id="hudScoreValue" class="font-arcade text-lg text-white leading-none">0</span>
+            <div class="chip py-1.5">
+              <i class="ph-fill ph-trophy text-sun-300"></i>
+              <span id="hudScoreValue" class="font-arcade text-lg leading-none text-cream">0</span>
             </div>
-            <button id="btnToggleMute" type="button" title="Activar/Silenciar Audio" class="p-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 transition">
+            <button id="btnToggleMute" type="button" title="Activar o silenciar audio" aria-label="Activar o silenciar audio" class="icon-button">
               <i id="iconSound" class="ph-fill ph-speaker-high text-lg"></i>
             </button>
           </div>
         </div>
       </nav>
 
-      <main class="flex-1 flex flex-col px-3 sm:px-6 py-4 sm:py-6">
-        <section id="screenInicio" class="w-full max-w-5xl mx-auto my-auto">
-          <div class="text-center mb-6">
-            <div class="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-purple-500/15 border border-purple-400/30 text-purple-200 text-xs font-bold mb-3">
-              <i class="ph-fill ph-lightning"></i>
-              Quiz arcade en tiempo real
+      <main id="mainContent" class="flex flex-1 flex-col px-3 py-4 sm:px-6 sm:py-6">
+        <section id="screenInicio" class="mx-auto my-auto w-full max-w-5xl">
+          <div class="mb-7 text-center">
+            <div class="mb-4 inline-flex items-center gap-2 rounded-full border border-coral-400/30 bg-coral-500/10 px-4 py-1.5 text-xs font-bold text-coral-400">
+              <span>🎮</span>
+              Trivia arcade para tu grupo
             </div>
-            <h1 class="font-arcade text-4xl sm:text-5xl text-white mb-2">PruebaQuiz</h1>
-            <p class="text-slate-400 text-sm sm:text-base">Cinco minijuegos, una sala y hasta 50 jugadores.</p>
-            <div class="mt-3 flex items-center justify-center gap-2 text-xs text-slate-400">
-              <span id="dbStatusDot" class="w-2 h-2 rounded-full bg-amber-400 animate-pulse"></span>
+            <h1 class="font-arcade text-4xl leading-tight text-cream sm:text-6xl">PruebaQuiz</h1>
+            <p class="mx-auto mt-2 max-w-xl text-sm text-slate-300 sm:text-base">
+              Cinco retos, una sala y hasta 50 jugadores. Sin descargas, solo ganas de jugar.
+            </p>
+            <div class="mt-4 flex flex-wrap items-center justify-center gap-2">
+              <span class="chip">🎯 5 minijuegos</span>
+              <span class="chip">👥 Hasta 50 jugadores</span>
+              <span class="chip">⚡ En tiempo real</span>
+            </div>
+            <div class="mt-4 inline-flex items-center gap-2 rounded-full border border-night-700 bg-night-900/70 px-3 py-1.5 text-xs text-slate-300" role="status" aria-live="polite">
+              <span id="dbStatusDot" class="h-2 w-2 animate-pulse rounded-full bg-sun-400"></span>
               <span id="dbStatusText">Conectando...</span>
             </div>
           </div>
 
           <div class="grid gap-4 md:grid-cols-2">
-            <form id="formJugador" class="bg-slate-900/80 border border-white/10 rounded-3xl p-5 sm:p-6 shadow-2xl">
-              <div class="flex items-center gap-2 mb-4">
-                <span class="w-10 h-10 rounded-xl bg-purple-500/20 border border-purple-400/30 flex items-center justify-center text-purple-200">
-                  <i class="ph-fill ph-game-controller text-xl"></i>
-                </span>
+            <form id="formJugador" class="panel border-t-4 border-t-mint-400 p-5 sm:p-6">
+              <div class="mb-4 flex items-center gap-3">
+                <span class="grid h-11 w-11 place-items-center rounded-xl border border-mint-400/30 bg-mint-500/15 text-xl">🎮</span>
                 <div>
-                  <h2 class="font-arcade text-xl text-white">Soy jugador</h2>
-                  <p class="text-xs text-slate-400">Ingresa con el código de la sala.</p>
+                  <h2 class="font-arcade text-xl text-cream">Unirme a una sala</h2>
+                  <p class="text-xs text-slate-400">Pide el código y entra en segundos.</p>
                 </div>
               </div>
-              <label class="block text-xs font-bold text-slate-300 mb-1" for="inputCodigoSala">Código de sala</label>
-              <input id="inputCodigoSala" type="text" maxlength="6" autocomplete="off" placeholder="ABC123" class="w-full mb-3 px-4 py-3 rounded-xl bg-slate-950 border border-slate-700 text-white font-arcade tracking-[0.3em] uppercase placeholder:text-slate-600 focus:outline-none focus:border-purple-400" />
-              <label class="block text-xs font-bold text-slate-300 mb-1" for="inputNombreJugador">Tu nombre</label>
-              <input id="inputNombreJugador" type="text" maxlength="30" autocomplete="nickname" placeholder="Tu nombre" class="w-full mb-3 px-4 py-3 rounded-xl bg-slate-950 border border-slate-700 text-white placeholder:text-slate-600 focus:outline-none focus:border-purple-400" />
-              <p id="errorJugador" class="hidden text-rose-400 text-xs font-bold mb-3"></p>
-              <button id="btnUnirse" type="submit" class="btn-3d w-full px-5 py-3.5 rounded-xl bg-gradient-to-r from-purple-500 to-indigo-600 text-white font-arcade font-bold shadow-[0_4px_0_#3730a3]">
+              <label class="field-label" for="inputCodigoSala">Código de sala</label>
+              <input id="inputCodigoSala" type="text" maxlength="6" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="ABC123" class="field mb-3 font-arcade uppercase tracking-[0.3em]" />
+              <label class="field-label" for="inputNombreJugador">Tu nombre</label>
+              <input id="inputNombreJugador" type="text" maxlength="30" autocomplete="nickname" placeholder="Tu nombre" class="field mb-3" />
+              <p id="errorJugador" class="mb-3 hidden text-xs font-bold text-coral-400" role="alert"></p>
+              <button id="btnUnirse" type="submit" class="btn-mint btn-3d w-full px-5 py-3.5 text-base">
                 Entrar a la sala
+                <i class="ph-bold ph-arrow-right"></i>
               </button>
             </form>
 
-            <form id="formAdmin" class="bg-slate-900/80 border border-white/10 rounded-3xl p-5 sm:p-6 shadow-2xl">
-              <div class="flex items-center gap-2 mb-4">
-                <span class="w-10 h-10 rounded-xl bg-amber-500/20 border border-amber-400/30 flex items-center justify-center text-amber-200">
-                  <i class="ph-fill ph-crown text-xl"></i>
-                </span>
+            <form id="formAdmin" class="panel border-t-4 border-t-sun-400 p-5 sm:p-6">
+              <div class="mb-4 flex items-center gap-3">
+                <span class="grid h-11 w-11 place-items-center rounded-xl border border-sun-400/30 bg-sun-400/15 text-xl">👑</span>
                 <div>
-                  <h2 class="font-arcade text-xl text-white">Soy administrador</h2>
-                  <p class="text-xs text-slate-400">Crea y controla una sala.</p>
+                  <h2 class="font-arcade text-xl text-cream">Administrar sala</h2>
+                  <p class="text-xs text-slate-400">Entra o crea tu cuenta para organizar la partida.</p>
                 </div>
               </div>
-              <label class="block text-xs font-bold text-slate-300 mb-1" for="inputAdminEmail">Correo</label>
-              <input id="inputAdminEmail" type="email" autocomplete="email" placeholder="admin@ejemplo.com" class="w-full mb-3 px-4 py-3 rounded-xl bg-slate-950 border border-slate-700 text-white placeholder:text-slate-600 focus:outline-none focus:border-amber-400" />
-              <label class="block text-xs font-bold text-slate-300 mb-1" for="inputAdminPassword">Contraseña</label>
-              <input id="inputAdminPassword" type="password" autocomplete="current-password" placeholder="Mínimo 6 caracteres" class="w-full mb-3 px-4 py-3 rounded-xl bg-slate-950 border border-slate-700 text-white placeholder:text-slate-600 focus:outline-none focus:border-amber-400" />
-              <p id="errorAdmin" class="hidden text-rose-400 text-xs font-bold mb-3"></p>
+              <label class="field-label" for="inputAdminEmail">Correo</label>
+              <input id="inputAdminEmail" type="email" autocomplete="email" placeholder="admin@ejemplo.com" class="field mb-3" />
+              <label class="field-label" for="inputAdminPassword">Contraseña</label>
+              <input id="inputAdminPassword" type="password" autocomplete="current-password" placeholder="Mínimo 6 caracteres" class="field mb-3" />
+              <p id="errorAdmin" class="mb-3 hidden text-xs font-bold text-coral-400" role="alert"></p>
               <div class="grid grid-cols-2 gap-2">
-                <button id="btnEntrarAdmin" type="submit" class="btn-3d px-4 py-3 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 font-arcade font-bold shadow-[0_4px_0_#92400e]">
+                <button id="btnEntrarAdmin" type="submit" class="btn-sun btn-3d px-4 py-3">
                   Entrar
                 </button>
-                <button id="btnRegistrarAdmin" type="button" class="btn-3d px-4 py-3 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-600 text-white font-arcade font-bold">
+                <button id="btnRegistrarAdmin" type="button" class="btn-secondary btn-3d px-4 py-3">
                   Crear cuenta
                 </button>
               </div>
             </form>
           </div>
 
-          <div id="panelAdminSala" class="hidden mt-4 bg-slate-900/80 border border-amber-400/30 rounded-3xl p-5 sm:p-6 shadow-2xl">
-            <h2 class="font-arcade text-xl text-amber-300 mb-2">Panel del administrador</h2>
-            <p class="text-sm text-slate-400 mb-4">Crea una sala nueva o abre una sala existente con su código.</p>
+          <div id="panelAdminSala" class="panel mt-4 hidden border-sun-400/30 p-5 sm:p-6">
+            <h2 class="font-arcade text-xl text-sun-300">👑 Tu panel</h2>
+            <p class="mb-4 text-sm text-slate-400">Crea una sala nueva o abre una existente con su código.</p>
             <div class="grid gap-3 md:grid-cols-[1fr_auto_auto] md:items-end">
               <div>
-                <label class="block text-xs font-bold text-slate-300 mb-1" for="inputCodigoAdmin">Código de sala</label>
-                <input id="inputCodigoAdmin" type="text" maxlength="6" autocomplete="off" placeholder="ABC123" class="w-full px-4 py-3 rounded-xl bg-slate-950 border border-slate-700 text-white font-arcade tracking-[0.3em] uppercase placeholder:text-slate-600 focus:outline-none focus:border-amber-400" />
+                <label class="field-label" for="inputCodigoAdmin">Código de sala</label>
+                <input id="inputCodigoAdmin" type="text" maxlength="6" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="ABC123" class="field font-arcade uppercase tracking-[0.3em]" />
               </div>
-              <button id="btnAbrirSala" type="button" class="btn-3d px-5 py-3 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-600 text-white font-arcade font-bold">
+              <button id="btnAbrirSala" type="button" class="btn-secondary btn-3d px-5 py-3">
                 Abrir sala
               </button>
-              <button id="btnCrearSala" type="button" class="btn-3d px-5 py-3 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-arcade font-bold shadow-[0_4px_0_#065f46]">
+              <button id="btnCrearSala" type="button" class="btn-mint btn-3d px-5 py-3">
                 Crear sala
               </button>
             </div>
           </div>
         </section>
 
-        <section id="screenEspera" class="hidden w-full max-w-3xl mx-auto my-auto">
-          <div class="bg-slate-900/80 border border-white/10 rounded-3xl p-5 sm:p-7 shadow-2xl text-center">
-            <p class="text-xs uppercase tracking-wider text-slate-400 font-bold mb-1">Código de sala</p>
-            <div class="flex items-center justify-center gap-3 mb-2">
-              <span id="codigoSala" class="font-arcade text-4xl sm:text-6xl text-amber-300 tracking-[0.25em]">------</span>
-              <button id="btnCopiarEnlace" type="button" title="Copiar enlace" class="p-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 transition">
+        <section id="screenEspera" class="mx-auto my-auto hidden w-full max-w-3xl">
+          <div class="panel p-5 text-center sm:p-7">
+            <div class="mb-5 inline-flex items-center gap-2 rounded-full border border-mint-400/25 bg-mint-500/10 px-3 py-1.5 text-xs font-bold text-mint-300">
+              <span>🕹️</span>
+              Sala abierta
+            </div>
+            <p class="mb-1 text-xs font-bold uppercase tracking-[0.2em] text-slate-400">Código de sala</p>
+            <div class="mb-2 flex items-center justify-center gap-3">
+              <span id="codigoSala" class="font-arcade text-4xl tracking-[0.25em] text-sun-300 sm:text-6xl">------</span>
+              <button id="btnCopiarEnlace" type="button" title="Copiar enlace" aria-label="Copiar enlace de la sala" class="icon-button">
                 <i class="ph-fill ph-copy text-lg"></i>
               </button>
             </div>
-            <p class="text-slate-400 text-xs sm:text-sm mb-4">Comparte este código o el enlace con tus jugadores.</p>
-            <div class="flex items-center justify-center gap-2 mb-4">
-              <span class="text-sm font-bold text-white">Sala de espera</span>
-              <span id="waitingRoomCount" class="text-amber-400 font-bold">0 / 50</span>
+            <p class="mb-5 text-xs text-slate-400 sm:text-sm">Comparte el código o el enlace. Todos entran desde su celular.</p>
+            <div class="mb-4 flex items-center justify-center gap-2">
+              <span class="text-sm font-bold text-cream">En la sala</span>
+              <span id="waitingRoomCount" class="rounded-full border border-sun-400/30 bg-sun-400/10 px-3 py-1 font-arcade text-sun-300">0 / 50</span>
             </div>
-            <div id="waitingPlayersGrid" class="flex flex-wrap items-center justify-center gap-2 min-h-16 mb-4"></div>
-            <div id="waitingAdminActions" class="hidden pt-4 border-t border-white/10 flex flex-wrap items-center justify-center gap-3">
-              <button id="btnLobbyEditQuestions" type="button" class="px-5 py-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-sm flex items-center gap-2 shadow-lg transition">
+            <div id="waitingPlayersGrid" class="mb-5 flex min-h-16 flex-wrap items-center justify-center gap-2"></div>
+            <div id="waitingAdminActions" class="hidden flex flex-wrap items-center justify-center gap-3 border-t border-night-700 pt-5">
+              <button id="btnLobbyEditQuestions" type="button" class="btn-secondary btn-3d px-5 py-3 text-sm">
                 <i class="ph-bold ph-pencil-simple"></i>
                 Editar preguntas
               </button>
-              <button id="btnLobbyStartQuiz" type="button" class="btn-3d px-7 py-3.5 rounded-xl bg-gradient-to-r from-emerald-400 to-emerald-500 text-slate-950 font-arcade font-bold text-base sm:text-lg shadow-[0_4px_0_#065f46] flex items-center gap-2">
+              <button id="btnLobbyStartQuiz" type="button" class="btn-mint btn-3d px-7 py-3.5 text-base sm:text-lg">
                 <i class="ph-bold ph-play"></i>
-                Iniciar quiz
+                Iniciar reto
               </button>
             </div>
-            <div id="waitingPlayerSpinner" class="flex items-center justify-center gap-2 text-amber-300 text-xs sm:text-sm font-semibold">
+            <div id="waitingPlayerSpinner" class="flex items-center justify-center gap-2 text-xs font-semibold text-sun-300 sm:text-sm">
               <i class="ph-bold ph-spinner animate-spin"></i>
               Esperando a que el administrador inicie...
             </div>
-            <p id="waitingRoomStatusText" class="text-slate-400 text-xs mt-3"></p>
+            <p id="waitingRoomStatusText" class="mt-3 text-xs text-slate-400"></p>
           </div>
         </section>
 
-        <section id="screenJuego" class="hidden w-full max-w-6xl mx-auto flex-1 flex flex-col gap-3">
-          <div class="bg-slate-900/80 border border-white/10 rounded-2xl p-3 sm:p-4 shadow-xl">
-            <div class="flex flex-wrap items-center justify-between gap-2 mb-2">
+        <section id="screenJuego" class="mx-auto hidden w-full max-w-6xl flex-1 flex flex-col gap-3">
+          <div class="panel p-3 sm:p-4">
+            <div class="mb-2 flex flex-wrap items-center justify-between gap-2">
               <div class="flex items-center gap-2">
-                <span id="badgeRoundNumber" class="px-2.5 py-0.5 rounded-lg bg-purple-600 text-white font-arcade text-xs sm:text-sm">RONDA 1/5</span>
-                <span id="badgeMiniGameType" class="text-xs sm:text-sm font-bold text-amber-300 flex items-center gap-1"></span>
+                <span id="badgeRoundNumber" class="rounded-lg bg-coral-500 px-2.5 py-0.5 font-arcade text-xs text-night-950 sm:text-sm">RETO 1/5</span>
+                <span id="badgeMiniGameType" class="flex items-center gap-1 text-xs font-bold text-sun-300 sm:text-sm"></span>
               </div>
               <div class="flex items-center gap-2">
-                <span id="roundStatusChip" class="px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-400/30">En curso</span>
-                <span class="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-slate-950 border border-white/10">
-                  <i class="ph-fill ph-timer text-amber-300"></i>
-                  <span id="timerNumber" class="font-arcade text-lg sm:text-xl text-white">30s</span>
+                <span id="roundStatusChip" class="rounded-full border border-mint-400/30 bg-mint-500/15 px-2.5 py-0.5 text-xs font-bold text-mint-300">En curso</span>
+                <span class="chip px-2.5 py-1">
+                  <i class="ph-fill ph-timer text-sun-300"></i>
+                  <span id="timerNumber" class="font-arcade text-lg text-cream sm:text-xl">30s</span>
                 </span>
               </div>
             </div>
-            <h2 id="questionHeading" class="font-arcade text-lg sm:text-2xl md:text-3xl text-center text-white py-2 px-3 bg-slate-950/60 rounded-xl border border-white/5 shadow-inner"></h2>
-            <div class="h-2 bg-slate-800 rounded-full overflow-hidden mt-2">
-              <div id="timerProgressBar" class="h-full bg-gradient-to-r from-emerald-400 via-amber-400 to-rose-500 transition-all duration-100" style="width: 100%"></div>
+            <h2 id="questionHeading" class="question-card mx-auto max-w-4xl rounded-xl px-4 py-3 text-center font-sans text-base font-semibold sm:text-2xl md:text-3xl"></h2>
+            <div class="mt-2 h-2 overflow-hidden rounded-full bg-night-800">
+              <div id="timerProgressBar" class="h-full bg-gradient-to-r from-mint-400 via-sun-400 to-coral-500 transition-all duration-100" style="width: 100%"></div>
             </div>
           </div>
 
-          <div id="containerGame1" class="hidden flex-1 grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 min-h-[320px]"></div>
+          <div id="containerGame1" class="hidden grid min-h-[320px] flex-1 grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4"></div>
 
-          <div id="containerCanvasGames" class="hidden flex-1 flex flex-col gap-2">
-            <div class="relative flex-1 min-h-[320px] bg-slate-950 rounded-2xl border border-white/10 overflow-hidden">
+          <div id="containerCanvasGames" class="hidden flex flex-1 flex-col gap-2">
+            <div class="panel relative min-h-[320px] flex-1 overflow-hidden">
               <canvas id="gameCanvas"></canvas>
-              <div id="canvasTopHint" class="absolute top-2.5 left-1/2 -translate-x-1/2 pointer-events-none px-3.5 py-1 rounded-full bg-slate-950/85 border border-white/15 text-xs font-semibold text-amber-200 shadow-lg text-center whitespace-nowrap"></div>
+              <div id="canvasTopHint" class="pointer-events-none absolute left-1/2 top-2.5 -translate-x-1/2 whitespace-nowrap rounded-full border border-sun-400/25 bg-night-950/90 px-3.5 py-1 text-center text-xs font-semibold text-sun-200 shadow-lg"></div>
             </div>
-            <div class="bg-slate-900/90 border border-white/10 rounded-2xl p-2.5 flex flex-wrap items-center justify-between gap-2">
+            <div class="panel flex flex-wrap items-center justify-between gap-2 p-2.5">
               <div class="flex items-center gap-1.5">
-                <button id="btnTouchLeft" type="button" class="btn-3d px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 active:bg-indigo-600 border border-slate-600 text-white font-bold flex items-center gap-1 shadow text-xs sm:text-sm">
+                <button id="btnTouchLeft" type="button" aria-label="Mover a la izquierda" class="btn-3d inline-flex h-10 w-10 items-center justify-center rounded-xl border border-night-600 bg-night-800 text-cream transition hover:bg-night-700 active:bg-mint-500 active:text-night-950">
                   <i class="ph-bold ph-arrow-left"></i>
                 </button>
-                <button id="btnTouchRight" type="button" class="btn-3d px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 active:bg-indigo-600 border border-slate-600 text-white font-bold flex items-center gap-1 shadow text-xs sm:text-sm">
+                <button id="btnTouchRight" type="button" aria-label="Mover a la derecha" class="btn-3d inline-flex h-10 w-10 items-center justify-center rounded-xl border border-night-600 bg-night-800 text-cream transition hover:bg-night-700 active:bg-mint-500 active:text-night-950">
                   <i class="ph-bold ph-arrow-right"></i>
                 </button>
-                <button id="btnTouchUp" type="button" class="hidden flex btn-3d px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 active:bg-indigo-600 border border-slate-600 text-white font-bold items-center gap-1 shadow text-xs sm:text-sm">
+                <button id="btnTouchUp" type="button" aria-label="Mover hacia arriba" class="hidden flex btn-3d h-10 w-10 items-center justify-center rounded-xl border border-night-600 bg-night-800 text-cream transition hover:bg-night-700 active:bg-mint-500 active:text-night-950">
                   <i class="ph-bold ph-arrow-up"></i>
                 </button>
-                <button id="btnTouchDown" type="button" class="hidden flex btn-3d px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 active:bg-indigo-600 border border-slate-600 text-white font-bold items-center gap-1 shadow text-xs sm:text-sm">
+                <button id="btnTouchDown" type="button" aria-label="Mover hacia abajo" class="hidden flex btn-3d h-10 w-10 items-center justify-center rounded-xl border border-night-600 bg-night-800 text-cream transition hover:bg-night-700 active:bg-mint-500 active:text-night-950">
                   <i class="ph-bold ph-arrow-down"></i>
                 </button>
               </div>
               <div id="laneQuickButtons" class="hidden flex items-center gap-1.5">
-                <button type="button" data-lane="0" class="lane-btn px-3 py-2 rounded-lg bg-rose-600 text-white text-xs font-bold">1</button>
-                <button type="button" data-lane="1" class="lane-btn px-3 py-2 rounded-lg bg-blue-600 text-white text-xs font-bold">2</button>
-                <button type="button" data-lane="2" class="lane-btn px-3 py-2 rounded-lg bg-amber-600 text-white text-xs font-bold">3</button>
-                <button type="button" data-lane="3" class="lane-btn px-3 py-2 rounded-lg bg-emerald-600 text-white text-xs font-bold">4</button>
+                <button type="button" data-lane="0" class="lane-btn rounded-lg bg-rose-600 px-3 py-2 text-xs font-bold text-white">1</button>
+                <button type="button" data-lane="1" class="lane-btn rounded-lg bg-blue-600 px-3 py-2 text-xs font-bold text-white">2</button>
+                <button type="button" data-lane="2" class="lane-btn rounded-lg bg-amber-600 px-3 py-2 text-xs font-bold text-white">3</button>
+                <button type="button" data-lane="3" class="lane-btn rounded-lg bg-emerald-600 px-3 py-2 text-xs font-bold text-white">4</button>
               </div>
               <div class="flex items-center gap-2">
-                <button id="btnRestoreShot" type="button" class="hidden flex btn-3d px-4 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-arcade font-bold text-xs sm:text-sm shadow-[0_4px_0_#881337] items-center gap-1.5">
+                <button id="btnRestoreShot" type="button" class="hidden flex btn-3d items-center gap-1.5 rounded-xl bg-coral-500 px-4 py-2.5 font-arcade text-xs font-bold text-night-950 hover:bg-coral-400 sm:text-sm">
                   <i class="ph-bold ph-arrow-counter-clockwise"></i>
                   Restaurar
                 </button>
-                <button id="btnTouchAction" type="button" class="btn-3d px-5 py-2.5 rounded-xl bg-gradient-to-r from-amber-400 to-orange-500 text-slate-950 font-arcade font-bold text-sm sm:text-base shadow-[0_4px_0_#9a3412] flex items-center gap-2">
+                <button id="btnTouchAction" type="button" class="btn-sun btn-3d px-5 py-2.5 text-sm sm:text-base">
                   <i class="ph-bold ph-lightning"></i>
-                  <span id="btnTouchActionText">ACCIÓN</span>
+                  <span id="btnTouchActionText">Acción</span>
                 </button>
               </div>
             </div>
           </div>
         </section>
 
-        <section id="screenResultados" class="hidden w-full max-w-3xl mx-auto my-auto py-2">
-          <div class="bg-slate-900/85 border border-white/10 rounded-3xl p-4 sm:p-6 shadow-2xl">
-            <div id="intermissionPlayerCard" class="rounded-2xl p-5 border text-center shadow-lg">
-              <div id="intermissionIcon" class="text-4xl sm:text-5xl mb-2">🎉</div>
-              <h2 id="intermissionTitle" class="font-arcade text-2xl sm:text-3xl text-white">Ronda terminada</h2>
-              <p id="intermissionSubtitle" class="text-sm text-slate-200 mt-1"></p>
-              <div id="intermissionStreakBanner" class="hidden mt-3 inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-gradient-to-r from-orange-500 to-red-600 text-white font-arcade text-sm shadow-lg streak-fire"></div>
+        <section id="screenResultados" class="mx-auto my-auto hidden w-full max-w-3xl py-2">
+          <div class="panel p-4 sm:p-6">
+            <div id="intermissionPlayerCard" class="rounded-2xl border p-5 text-center shadow-lg">
+              <div id="intermissionIcon" class="mb-2 text-4xl sm:text-5xl">🎉</div>
+              <h2 id="intermissionTitle" class="font-arcade text-2xl text-cream sm:text-3xl">Reto terminado</h2>
+              <p id="intermissionSubtitle" class="mt-1 text-sm text-slate-200"></p>
+              <div id="intermissionStreakBanner" class="streak-fire mt-3 hidden inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-coral-500 to-sun-400 px-4 py-1.5 font-arcade text-sm text-night-950 shadow-lg"></div>
             </div>
-            <div class="mt-4 bg-slate-950/60 border border-white/10 rounded-2xl overflow-hidden">
-              <div class="px-4 py-2.5 border-b border-white/10 flex items-center justify-between">
-                <span class="font-arcade text-sm text-white">Top 10</span>
-                <span id="intermissionRoundLabel" class="text-xs text-slate-400 font-semibold">Ronda 1 de 5</span>
+            <div class="panel-soft mt-4 overflow-hidden">
+              <div class="flex items-center justify-between border-b border-night-700 px-4 py-2.5">
+                <span class="font-arcade text-sm text-cream">Top 10</span>
+                <span id="intermissionRoundLabel" class="text-xs font-semibold text-slate-400">Reto 1 de 5</span>
               </div>
-              <div id="intermissionTop10List" class="divide-y divide-white/5 max-h-64 overflow-y-auto"></div>
+              <div id="intermissionTop10List" class="max-h-64 divide-y divide-night-700/60 overflow-y-auto"></div>
             </div>
             <div class="mt-4 text-center">
-              <button id="btnIntermissionNextAdmin" type="button" class="hidden flex btn-3d mx-auto px-7 py-3.5 rounded-xl bg-gradient-to-r from-emerald-400 to-emerald-500 text-slate-950 font-arcade font-bold text-base sm:text-lg shadow-[0_4px_0_#065f46] items-center gap-2">
-                <span id="btnIntermissionNextText">Siguiente juego</span>
+              <button id="btnIntermissionNextAdmin" type="button" class="btn-mint btn-3d mx-auto hidden flex items-center gap-2 px-7 py-3.5 text-base sm:text-lg">
+                <span id="btnIntermissionNextText">Siguiente reto</span>
                 <i class="ph-bold ph-arrow-right"></i>
               </button>
-              <p id="intermissionWaitingMsg" class="text-xs sm:text-sm text-amber-300 font-semibold flex items-center justify-center gap-2">
+              <p id="intermissionWaitingMsg" class="flex items-center justify-center gap-2 text-xs font-semibold text-sun-300 sm:text-sm">
                 <i class="ph-bold ph-spinner animate-spin"></i>
                 Esperando al administrador...
               </p>
@@ -285,59 +301,59 @@
           </div>
         </section>
 
-        <section id="screenPodio" class="hidden w-full max-w-4xl mx-auto my-auto py-4">
-          <div class="bg-slate-900/85 border border-white/10 rounded-3xl p-4 sm:p-6 shadow-2xl">
-            <h2 class="font-arcade text-3xl sm:text-4xl text-center text-amber-300 mb-1">Podio final</h2>
-            <p class="text-center text-slate-400 text-sm mb-4">¡Gracias por jugar!</p>
-            <div id="podiumPedestals" class="grid grid-cols-3 gap-2 sm:gap-4 items-end max-w-2xl mx-auto pt-8 pb-4 px-2 min-h-[290px]"></div>
-            <div id="podiumAdminControls" class="hidden flex items-center justify-center my-6">
-              <button id="btnPlayAgain" type="button" class="px-6 py-3 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 font-arcade text-base font-bold flex items-center gap-2 shadow-lg transition">
+        <section id="screenPodio" class="mx-auto my-auto hidden w-full max-w-4xl py-4">
+          <div class="panel p-4 sm:p-6">
+            <h2 class="mb-1 text-center font-arcade text-3xl text-sun-300 sm:text-4xl">Podio final</h2>
+            <p class="mb-4 text-center text-sm text-slate-400">¡Gracias por jugar!</p>
+            <div id="podiumPedestals" class="mx-auto grid min-h-[290px] max-w-2xl grid-cols-3 items-end gap-2 px-2 pb-4 pt-8 sm:gap-4"></div>
+            <div id="podiumAdminControls" class="my-6 hidden flex items-center justify-center">
+              <button id="btnPlayAgain" type="button" class="btn-sun btn-3d px-6 py-3 text-base">
                 <i class="ph-bold ph-arrows-clockwise"></i>
                 Jugar de nuevo
               </button>
             </div>
-            <div class="bg-slate-950/60 border border-white/10 rounded-2xl overflow-hidden">
-              <div class="px-4 py-2.5 border-b border-white/10 flex items-center justify-between">
-                <span class="font-arcade text-sm text-white">Ranking completo</span>
+            <div class="panel-soft overflow-hidden">
+              <div class="flex items-center justify-between border-b border-night-700 px-4 py-2.5">
+                <span class="font-arcade text-sm text-cream">Ranking completo</span>
                 <span id="rankingTotalPlayers" class="text-xs text-slate-400">0 jugadores</span>
               </div>
-              <div class="divide-y divide-white/5 max-h-64 overflow-y-auto" id="rankingListContainer"></div>
+              <div id="rankingListContainer" class="max-h-64 divide-y divide-night-700/60 overflow-y-auto"></div>
             </div>
           </div>
         </section>
       </main>
 
-      <div id="modalQuestionEditor" class="hidden fixed inset-0 z-50 bg-black/80 backdrop-blur-sm items-center justify-center p-4">
-        <div class="w-full max-w-2xl bg-slate-900 border border-white/15 rounded-3xl shadow-2xl overflow-hidden max-h-[92vh] flex flex-col">
-          <div class="px-5 py-4 border-b border-white/10 flex items-center justify-between">
-            <h3 class="font-arcade text-xl text-white">Editor de preguntas</h3>
-            <button id="btnCloseEditorModal" type="button" class="p-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300">
+      <div id="modalQuestionEditor" role="dialog" aria-modal="true" aria-labelledby="editorModalTitle" class="hidden fixed inset-0 z-50 items-center justify-center bg-night-950/80 p-4 backdrop-blur-sm">
+        <div class="panel flex max-h-[92vh] w-full max-w-2xl flex-col overflow-hidden border-night-600">
+          <div class="flex items-center justify-between border-b border-night-700 px-5 py-4">
+            <h3 id="editorModalTitle" class="font-arcade text-xl text-cream">Editor de preguntas</h3>
+            <button id="btnCloseEditorModal" type="button" aria-label="Cerrar editor" class="icon-button">
               <i class="ph-bold ph-x"></i>
             </button>
           </div>
-          <div class="px-4 pt-3 bg-slate-950/60 border-b border-white/10 flex gap-2 overflow-x-auto" id="editorTabsContainer"></div>
-          <div class="p-4 sm:p-5 overflow-y-auto flex-1">
-            <label class="block text-xs font-bold text-slate-300 mb-1" for="editorQuestionInput">Enunciado (<span id="editorGameLabel">Juego 1</span>)</label>
-            <textarea id="editorQuestionInput" rows="2" class="w-full mb-3 px-3 py-2 rounded-lg bg-slate-950 border border-slate-700 text-white text-sm resize-none"></textarea>
+          <div id="editorTabsContainer" class="flex gap-2 overflow-x-auto border-b border-night-700 bg-night-950/60 px-4 pt-3"></div>
+          <div class="flex-1 overflow-y-auto p-4 sm:p-5">
+            <label class="field-label" for="editorQuestionInput">Enunciado (<span id="editorGameLabel">Reto 1</span>)</label>
+            <textarea id="editorQuestionInput" rows="2" class="field mb-3 resize-none text-sm"></textarea>
             <div class="grid gap-2 sm:grid-cols-2">
-              <label class="text-xs text-slate-300 font-bold">Opción 1<input type="text" id="editorOpt0" class="mt-1 w-full px-3 py-2 rounded-lg bg-slate-950 border border-slate-700 text-white text-sm" /></label>
-              <label class="text-xs text-slate-300 font-bold">Opción 2<input type="text" id="editorOpt1" class="mt-1 w-full px-3 py-2 rounded-lg bg-slate-950 border border-slate-700 text-white text-sm" /></label>
-              <label class="text-xs text-slate-300 font-bold">Opción 3<input type="text" id="editorOpt2" class="mt-1 w-full px-3 py-2 rounded-lg bg-slate-950 border border-slate-700 text-white text-sm" /></label>
-              <label class="text-xs text-slate-300 font-bold">Opción 4<input type="text" id="editorOpt3" class="mt-1 w-full px-3 py-2 rounded-lg bg-slate-950 border border-slate-700 text-white text-sm" /></label>
+              <label class="text-xs font-bold text-slate-300">Opción 1<input type="text" id="editorOpt0" class="field mt-1 py-2 text-sm" /></label>
+              <label class="text-xs font-bold text-slate-300">Opción 2<input type="text" id="editorOpt1" class="field mt-1 py-2 text-sm" /></label>
+              <label class="text-xs font-bold text-slate-300">Opción 3<input type="text" id="editorOpt2" class="field mt-1 py-2 text-sm" /></label>
+              <label class="text-xs font-bold text-slate-300">Opción 4<input type="text" id="editorOpt3" class="field mt-1 py-2 text-sm" /></label>
             </div>
             <fieldset class="mt-4">
-              <legend class="text-xs font-bold text-slate-300 mb-2">Respuesta correcta</legend>
-              <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                <label class="flex items-center gap-2 px-3 py-2 rounded-lg bg-slate-950 border border-slate-700 text-xs text-white"><input type="radio" name="editorCorrectOption" value="0" class="accent-emerald-500" /> 1</label>
-                <label class="flex items-center gap-2 px-3 py-2 rounded-lg bg-slate-950 border border-slate-700 text-xs text-white"><input type="radio" name="editorCorrectOption" value="1" class="accent-emerald-500" /> 2</label>
-                <label class="flex items-center gap-2 px-3 py-2 rounded-lg bg-slate-950 border border-slate-700 text-xs text-white"><input type="radio" name="editorCorrectOption" value="2" class="accent-emerald-500" /> 3</label>
-                <label class="flex items-center gap-2 px-3 py-2 rounded-lg bg-slate-950 border border-slate-700 text-xs text-white"><input type="radio" name="editorCorrectOption" value="3" class="accent-emerald-500" /> 4</label>
+              <legend class="mb-2 text-xs font-bold text-slate-300">Respuesta correcta</legend>
+              <div class="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                <label class="flex items-center gap-2 rounded-lg border border-night-700 bg-night-950 px-3 py-2 text-xs text-cream"><input type="radio" name="editorCorrectOption" value="0" class="accent-mint-500" /> 1</label>
+                <label class="flex items-center gap-2 rounded-lg border border-night-700 bg-night-950 px-3 py-2 text-xs text-cream"><input type="radio" name="editorCorrectOption" value="1" class="accent-mint-500" /> 2</label>
+                <label class="flex items-center gap-2 rounded-lg border border-night-700 bg-night-950 px-3 py-2 text-xs text-cream"><input type="radio" name="editorCorrectOption" value="2" class="accent-mint-500" /> 3</label>
+                <label class="flex items-center gap-2 rounded-lg border border-night-700 bg-night-950 px-3 py-2 text-xs text-cream"><input type="radio" name="editorCorrectOption" value="3" class="accent-mint-500" /> 4</label>
               </div>
             </fieldset>
-            <p id="editorError" class="hidden text-rose-400 text-xs font-bold mt-3"></p>
+            <p id="editorError" class="mt-3 hidden text-xs font-bold text-coral-400" role="alert"></p>
           </div>
-          <div class="px-4 py-3 border-t border-white/10 flex justify-end">
-            <button id="btnSaveQuestions" type="button" class="px-5 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-arcade font-bold text-sm shadow-lg flex items-center gap-1.5">
+          <div class="flex justify-end border-t border-night-700 px-4 py-3">
+            <button id="btnSaveQuestions" type="button" class="btn-mint btn-3d px-5 py-2.5 text-sm">
               <i class="ph-bold ph-floppy-disk"></i>
               Guardar preguntas
             </button>
@@ -345,24 +361,24 @@
         </div>
       </div>
 
-      <div id="modalPlayerManager" class="hidden fixed inset-0 z-50 bg-black/80 backdrop-blur-sm items-center justify-center p-4">
-        <div class="w-full max-w-lg bg-slate-900 border border-white/15 rounded-3xl shadow-2xl overflow-hidden max-h-[85vh] flex flex-col">
-          <div class="px-5 py-4 border-b border-white/10 flex items-center justify-between">
-            <h3 class="font-arcade text-xl text-white">Jugadores en la sala</h3>
-            <button id="btnClosePlayerManager" type="button" class="p-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300">
+      <div id="modalPlayerManager" role="dialog" aria-modal="true" aria-labelledby="playerManagerTitle" class="hidden fixed inset-0 z-50 items-center justify-center bg-night-950/80 p-4 backdrop-blur-sm">
+        <div class="panel flex max-h-[85vh] w-full max-w-lg flex-col overflow-hidden border-night-600">
+          <div class="flex items-center justify-between border-b border-night-700 px-5 py-4">
+            <h3 id="playerManagerTitle" class="font-arcade text-xl text-cream">Jugadores en la sala</h3>
+            <button id="btnClosePlayerManager" type="button" aria-label="Cerrar lista de jugadores" class="icon-button">
               <i class="ph-bold ph-x"></i>
             </button>
           </div>
-          <div id="playerManagerList" class="p-4 overflow-y-auto space-y-2 flex-1"></div>
+          <div id="playerManagerList" class="flex-1 space-y-2 overflow-y-auto p-4"></div>
         </div>
       </div>
 
-      <div id="toastNotification" class="fixed bottom-4 right-4 z-50 pointer-events-none opacity-0 translate-y-4 transition-all duration-300 bg-slate-900/95 border border-amber-400/40 text-white px-4 py-3 rounded-2xl shadow-2xl flex items-center gap-2.5 text-sm font-semibold">
-        <i class="ph-fill ph-info text-amber-300"></i>
+      <div id="toastNotification" role="status" aria-live="polite" class="pointer-events-none fixed bottom-4 right-4 z-50 flex translate-y-4 items-center gap-2.5 rounded-2xl border border-sun-400/40 bg-night-900/95 px-4 py-3 text-sm font-semibold text-cream opacity-0 shadow-panel transition-all duration-300">
+        <i class="ph-fill ph-info text-sun-300"></i>
         <span id="toastMessage">Mensaje</span>
       </div>
 
-      <button id="btnLogout" type="button" class="hidden fixed bottom-4 left-4 z-50 px-3 py-2 rounded-xl bg-slate-900/95 hover:bg-slate-800 border border-white/15 text-slate-300 text-xs font-bold shadow-xl items-center gap-1.5">
+      <button id="btnLogout" type="button" class="fixed bottom-4 left-4 z-50 hidden items-center gap-1.5 rounded-xl border border-night-700 bg-night-900/95 px-3 py-2 text-xs font-bold text-slate-300 shadow-xl hover:bg-night-800">
         <i class="ph-bold ph-sign-out"></i>
         Salir
       </button>

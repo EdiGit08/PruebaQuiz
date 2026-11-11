@@ -2,16 +2,138 @@
 @tailwind components;
 @tailwind utilities;
 
-body {
-  font-family: 'Inter', sans-serif;
-  background: radial-gradient(circle at 50% 20%, #2e1065 0%, #0f172a 70%, #020617 100%);
-  min-height: 100vh;
-  overflow-x: hidden;
-  user-select: none;
+@layer base {
+  html {
+    color-scheme: dark;
+  }
+
+  body {
+    font-family: 'Inter', sans-serif;
+    color: #f7f1e5;
+    background-color: #0b1220;
+    background-image:
+      radial-gradient(circle at 12% -5%, rgba(242, 107, 74, 0.18), transparent 26rem),
+      radial-gradient(circle at 92% 8%, rgba(95, 208, 176, 0.13), transparent 24rem),
+      radial-gradient(circle at 50% 110%, rgba(246, 196, 83, 0.09), transparent 30rem),
+      linear-gradient(rgba(255, 255, 255, 0.025) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255, 255, 255, 0.025) 1px, transparent 1px);
+    background-size: auto, auto, auto, 32px 32px, 32px 32px;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  ::selection {
+    background: #f6c453;
+    color: #0b1220;
+  }
+
+  button,
+  .btn-3d,
+  .chip {
+    user-select: none;
+  }
+
+  input,
+  textarea,
+  select {
+    user-select: text;
+  }
+
+  button,
+  input,
+  select,
+  textarea {
+    font: inherit;
+  }
+
+  button {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  :where(button, a):focus-visible {
+    outline: 2px solid #f6c453;
+    outline-offset: 3px;
+  }
+
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: #304464 transparent;
+  }
+
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: #304464;
+    border-radius: 999px;
+    border: 2px solid #0b1220;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
 }
 
-.font-arcade {
-  font-family: 'Fredoka', sans-serif;
+@layer components {
+  .font-arcade {
+    font-family: 'Fredoka', sans-serif;
+  }
+
+  .panel {
+    @apply rounded-2xl border border-night-700 bg-night-900/90 shadow-panel;
+  }
+
+  .panel-soft {
+    @apply rounded-xl border border-night-700 bg-night-950/70;
+  }
+
+  .chip {
+    @apply inline-flex items-center gap-1.5 rounded-full border border-night-700 bg-night-800/90 px-3 py-1 text-xs font-semibold text-slate-300;
+  }
+
+  .field {
+    @apply w-full rounded-xl border border-night-700 bg-night-950 px-4 py-3 text-cream placeholder:text-slate-500 transition focus:border-mint-400 focus:outline-none focus:ring-2 focus:ring-mint-400/20;
+  }
+
+  .field-label {
+    @apply mb-1.5 block text-xs font-bold text-slate-300;
+  }
+
+  .btn-primary {
+    @apply inline-flex items-center justify-center gap-2 rounded-xl bg-coral-500 px-5 py-3 font-arcade font-bold text-night-950 transition hover:bg-coral-400 disabled:cursor-not-allowed disabled:opacity-50;
+    box-shadow: 0 4px 0 #9f3d26;
+  }
+
+  .btn-mint {
+    @apply inline-flex items-center justify-center gap-2 rounded-xl bg-mint-400 px-5 py-3 font-arcade font-bold text-night-950 transition hover:bg-mint-300 disabled:cursor-not-allowed disabled:opacity-50;
+    box-shadow: 0 4px 0 #16735c;
+  }
+
+  .btn-sun {
+    @apply inline-flex items-center justify-center gap-2 rounded-xl bg-sun-400 px-5 py-3 font-arcade font-bold text-night-950 transition hover:bg-sun-300 disabled:cursor-not-allowed disabled:opacity-50;
+    box-shadow: 0 4px 0 #9a711d;
+  }
+
+  .btn-secondary {
+    @apply inline-flex items-center justify-center gap-2 rounded-xl border border-night-600 bg-night-800 px-4 py-2.5 text-sm font-bold text-cream transition hover:bg-night-700 disabled:cursor-not-allowed disabled:opacity-50;
+  }
+
+  .btn-ghost {
+    @apply inline-flex items-center justify-center gap-2 rounded-xl border border-transparent px-3 py-2 text-xs font-bold text-slate-300 transition hover:border-night-600 hover:bg-night-800 hover:text-cream;
+  }
+
+  .icon-button {
+    @apply inline-flex h-10 w-10 items-center justify-center rounded-xl border border-night-700 bg-night-800 text-slate-300 transition hover:border-night-600 hover:bg-night-700 hover:text-cream;
+  }
+
+  .question-card {
+    background: linear-gradient(180deg, #fbf6ec 0%, #f2e9d8 100%);
+    color: #1b2430;
+    border: 2px solid #d8cbb6;
+    box-shadow: 0 6px 0 #c7b79d;
+  }
 }
 
 .btn-3d {
@@ -20,6 +142,7 @@ body {
 
 .btn-3d:active:not(:disabled) {
   transform: translateY(4px);
+  box-shadow: 0 0 0 transparent;
 }
 
 .card-red {
@@ -65,4 +188,21 @@ canvas {
   width: 100%;
   height: 100%;
   touch-action: none;
+}
+
+@media (min-width: 768px) {
+  body {
+    background-attachment: fixed;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+  }
 }
