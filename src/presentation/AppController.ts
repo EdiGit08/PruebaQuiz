@@ -947,11 +947,13 @@ export class AppController {
     try {
       const sala = this.sala;
       if (sala.estado === 'WAITING') {
-        await this.servicios.admin.iniciar(sala.id);
+        const actualizada = await this.servicios.admin.iniciar(sala.id);
+        await this.manejarSala(actualizada);
       } else if (sala.estado === 'IN_GAME') {
         await this.revelarRondaAdmin();
       } else if (sala.estado === 'REVEALED') {
-        await this.servicios.admin.avanzar(sala.id);
+        const actualizada = await this.servicios.admin.avanzar(sala.id);
+        await this.manejarSala(actualizada);
       } else {
         await this.reiniciarSala();
       }
@@ -963,7 +965,8 @@ export class AppController {
   private async reiniciarSala(): Promise<void> {
     if (!this.esAdmin || !this.sala) return;
     try {
-      await this.servicios.admin.reiniciar(this.sala.id);
+      const actualizada = await this.servicios.admin.reiniciar(this.sala.id);
+      await this.manejarSala(actualizada);
       this.mostrarToast('Sala reiniciada. Los jugadores pueden volver a entrar.');
     } catch (error) {
       this.mostrarError(error);
