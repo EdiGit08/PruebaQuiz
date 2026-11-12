@@ -4,12 +4,12 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#0b1220" />
-    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23f26b4a'/%3E%3Ctext x='32' y='43' font-family='Arial' font-size='30' font-weight='700' text-anchor='middle' fill='%230b1220'%3EPQ%3C/text%3E%3C/svg%3E" />
-    <meta name="description" content="PruebaQuiz: trivia arcade para jugar en grupo, con cinco minijuegos y hasta 50 jugadores." />
-    <meta property="og:title" content="PruebaQuiz · Trivia arcade para tu grupo" />
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23f26b4a'/%3E%3Ctext x='32' y='43' font-family='Arial' font-size='30' font-weight='700' text-anchor='middle' fill='%230b1220'%3EQG%3C/text%3E%3C/svg%3E" />
+    <meta name="description" content="QuizGame: trivia arcade para jugar en grupo, con cinco minijuegos y hasta 50 jugadores." />
+    <meta property="og:title" content="QuizGame · Trivia arcade para tu grupo" />
     <meta property="og:description" content="Cinco minijuegos, una sala y hasta 50 jugadores. Sin descargas, solo ganas de jugar." />
     <meta property="og:type" content="website" />
-    <title>PruebaQuiz · Trivia arcade para tu grupo</title>
+    <title>QuizGame · Trivia arcade para tu grupo</title>
   </head>
   <body class="min-h-screen text-cream antialiased">
     <a href="#mainContent" class="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[60] focus:rounded-xl focus:bg-sun-400 focus:px-4 focus:py-2 focus:font-bold focus:text-night-950">Saltar al contenido</a>
@@ -74,10 +74,6 @@
               <i class="ph-fill ph-check-circle text-mint-300"></i>
               <span id="hudAnsweredRatio" class="font-arcade text-base text-cream">0/0</span>
             </div>
-            <div id="hudStreakContainer" class="chip py-1.5 text-xs sm:text-sm">
-              <span id="hudStreakIcon">⚡</span>
-              <span id="hudStreakValue" class="font-arcade text-base text-sun-300">x0</span>
-            </div>
             <div class="chip py-1.5">
               <i class="ph-fill ph-trophy text-sun-300"></i>
               <span id="hudScoreValue" class="font-arcade text-lg leading-none text-cream">0</span>
@@ -93,17 +89,17 @@
         <section id="screenInicio" class="mx-auto my-auto w-full max-w-5xl">
           <div class="mb-7 text-center">
             <div class="mb-4 inline-flex items-center gap-2 rounded-full border border-coral-400/30 bg-coral-500/10 px-4 py-1.5 text-xs font-bold text-coral-400">
-              <span>🎮</span>
+              <i class="ph-fill ph-game-controller text-base"></i>
               Trivia arcade para tu grupo
             </div>
-            <h1 class="font-arcade text-4xl leading-tight text-cream sm:text-6xl">PruebaQuiz</h1>
+            <h1 class="font-arcade text-4xl leading-tight text-cream sm:text-6xl">QuizGame</h1>
             <p class="mx-auto mt-2 max-w-xl text-sm text-slate-300 sm:text-base">
               Cinco retos, una sala y hasta 50 jugadores. Sin descargas, solo ganas de jugar.
             </p>
             <div class="mt-4 flex flex-wrap items-center justify-center gap-2">
-              <span class="chip">🎯 5 minijuegos</span>
-              <span class="chip">👥 Hasta 50 jugadores</span>
-              <span class="chip">⚡ En tiempo real</span>
+              <span class="chip"><i class="ph-fill ph-target text-sun-300"></i> 5 minijuegos</span>
+              <span class="chip"><i class="ph-fill ph-users text-mint-300"></i> Hasta 50 jugadores</span>
+              <span class="chip"><i class="ph-fill ph-lightning text-coral-400"></i> En tiempo real</span>
             </div>
             <div class="mt-4 inline-flex items-center gap-2 rounded-full border border-night-700 bg-night-900/70 px-3 py-1.5 text-xs text-slate-300" role="status" aria-live="polite">
               <span id="dbStatusDot" class="h-2 w-2 animate-pulse rounded-full bg-sun-400"></span>
@@ -111,10 +107,10 @@
             </div>
           </div>
 
-          <div class="grid gap-4 md:grid-cols-2">
+          <div class="mx-auto max-w-xl">
             <form id="formJugador" class="panel border-t-4 border-t-mint-400 p-5 sm:p-6">
               <div class="mb-4 flex items-center gap-3">
-                <span class="grid h-11 w-11 place-items-center rounded-xl border border-mint-400/30 bg-mint-500/15 text-xl">🎮</span>
+                <span class="grid h-11 w-11 place-items-center rounded-xl border border-mint-400/30 bg-mint-500/15 text-xl text-mint-300"><i class="ph-fill ph-game-controller"></i></span>
                 <div>
                   <h2 class="font-arcade text-xl text-cream">Unirme a una sala</h2>
                   <p class="text-xs text-slate-400">Pide el código y entra en segundos.</p>
@@ -131,32 +127,41 @@
               </button>
             </form>
 
-            <form id="formAdmin" class="panel border-t-4 border-t-sun-400 p-5 sm:p-6">
-              <div class="mb-4 flex items-center gap-3">
-                <span class="grid h-11 w-11 place-items-center rounded-xl border border-sun-400/30 bg-sun-400/15 text-xl">👑</span>
-                <div>
-                  <h2 class="font-arcade text-xl text-cream">Administrar sala</h2>
-                  <p class="text-xs text-slate-400">Entra o crea tu cuenta para organizar la partida.</p>
-                </div>
-              </div>
-              <label class="field-label" for="inputAdminEmail">Correo</label>
-              <input id="inputAdminEmail" type="email" autocomplete="email" placeholder="admin@ejemplo.com" class="field mb-3" />
-              <label class="field-label" for="inputAdminPassword">Contraseña</label>
-              <input id="inputAdminPassword" type="password" autocomplete="current-password" placeholder="Mínimo 6 caracteres" class="field mb-3" />
-              <p id="errorAdmin" class="mb-3 hidden text-xs font-bold text-coral-400" role="alert"></p>
-              <div class="grid grid-cols-2 gap-2">
-                <button id="btnEntrarAdmin" type="submit" class="btn-sun btn-3d px-4 py-3">
-                  Entrar
-                </button>
-                <button id="btnRegistrarAdmin" type="button" class="btn-secondary btn-3d px-4 py-3">
-                  Crear cuenta
-                </button>
-              </div>
-            </form>
           </div>
 
-          <div id="panelAdminSala" class="panel mt-4 hidden border-sun-400/30 p-5 sm:p-6">
-            <h2 class="font-arcade text-xl text-sun-300">👑 Tu panel</h2>
+        </section>
+
+        <section id="screenAdminLogin" class="mx-auto my-auto hidden w-full max-w-md">
+          <form id="formAdmin" class="panel border-t-4 border-t-sun-400 p-5 sm:p-6">
+            <div class="mb-4 flex items-center gap-3">
+              <span class="grid h-11 w-11 place-items-center rounded-xl border border-sun-400/30 bg-sun-400/15 text-xl text-sun-300"><i class="ph-fill ph-crown"></i></span>
+              <div>
+                <h2 class="font-arcade text-xl text-cream">Administrar sala</h2>
+                <p class="text-xs text-slate-400">Acceso privado del administrador.</p>
+              </div>
+            </div>
+            <label class="field-label" for="inputAdminEmail">Correo</label>
+            <input id="inputAdminEmail" type="email" autocomplete="email" placeholder="admin@ejemplo.com" class="field mb-3" />
+            <label class="field-label" for="inputAdminPassword">Contraseña</label>
+            <input id="inputAdminPassword" type="password" autocomplete="current-password" placeholder="Mínimo 6 caracteres" class="field mb-3" />
+            <p id="errorAdmin" class="mb-3 hidden text-xs font-bold text-coral-400" role="alert"></p>
+            <div class="grid grid-cols-2 gap-2">
+              <button id="btnEntrarAdmin" type="submit" class="btn-sun btn-3d px-4 py-3">
+                Entrar
+              </button>
+              <button id="btnRegistrarAdmin" type="button" class="btn-secondary btn-3d px-4 py-3">
+                Crear cuenta
+              </button>
+            </div>
+            <button id="btnVolverInicioAdmin" type="button" class="mt-3 w-full text-center text-xs font-bold text-slate-400 transition hover:text-cream">
+              Volver al inicio
+            </button>
+          </form>
+        </section>
+
+        <section id="screenAdminPanel" class="mx-auto my-auto hidden w-full max-w-3xl">
+          <div id="panelAdminSala" class="panel border-sun-400/30 p-5 sm:p-6">
+            <h2 class="font-arcade text-xl text-sun-300"><i class="ph-fill ph-crown mr-1"></i> Tu panel</h2>
             <p class="mb-4 text-sm text-slate-400">Crea una sala nueva o abre una existente con su código.</p>
             <div class="grid gap-3 md:grid-cols-[1fr_auto_auto] md:items-end">
               <div>
@@ -176,7 +181,7 @@
         <section id="screenEspera" class="mx-auto my-auto hidden w-full max-w-3xl">
           <div class="panel p-5 text-center sm:p-7">
             <div class="mb-5 inline-flex items-center gap-2 rounded-full border border-mint-400/25 bg-mint-500/10 px-3 py-1.5 text-xs font-bold text-mint-300">
-              <span>🕹️</span>
+              <i class="ph-fill ph-joystick text-base"></i>
               Sala abierta
             </div>
             <p class="mb-1 text-xs font-bold uppercase tracking-[0.2em] text-slate-400">Código de sala</p>
@@ -276,10 +281,9 @@
         <section id="screenResultados" class="mx-auto my-auto hidden w-full max-w-3xl py-2">
           <div class="panel p-4 sm:p-6">
             <div id="intermissionPlayerCard" class="rounded-2xl border p-5 text-center shadow-lg">
-              <div id="intermissionIcon" class="mb-2 text-4xl sm:text-5xl">🎉</div>
+              <i id="intermissionIcon" class="ph-fill ph-check-circle mb-2 block text-4xl text-mint-300 sm:text-5xl"></i>
               <h2 id="intermissionTitle" class="font-arcade text-2xl text-cream sm:text-3xl">Reto terminado</h2>
               <p id="intermissionSubtitle" class="mt-1 text-sm text-slate-200"></p>
-              <div id="intermissionStreakBanner" class="streak-fire mt-3 hidden inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-coral-500 to-sun-400 px-4 py-1.5 font-arcade text-sm text-night-950 shadow-lg"></div>
             </div>
             <div class="panel-soft mt-4 overflow-hidden">
               <div class="flex items-center justify-between border-b border-night-700 px-4 py-2.5">

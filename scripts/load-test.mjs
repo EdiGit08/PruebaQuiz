@@ -141,7 +141,7 @@ async function main() {
     'ranking',
     admin
       .from('jugadores')
-      .select('nombre,puntaje,racha_max')
+      .select('nombre,puntaje')
       .eq('sala', sala.id)
       .order('puntaje', { ascending: false })
   );
@@ -159,9 +159,9 @@ async function main() {
 
   const reseteados = await exigir(
     'puntajes reseteados',
-    admin.from('jugadores').select('puntaje,racha,racha_max').eq('sala', sala.id)
+    admin.from('jugadores').select('puntaje').eq('sala', sala.id)
   );
-  if (reseteados.some((jugador) => jugador.puntaje !== 0 || jugador.racha !== 0)) {
+  if (reseteados.some((jugador) => jugador.puntaje !== 0)) {
     throw new Error('El reinicio no reseteó todos los puntajes.');
   }
 

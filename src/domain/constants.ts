@@ -1,6 +1,4 @@
 export const PUNTOS_BASE = 100;
-export const MULTIPLICADOR_RACHA = 1.5;
-export const RACHA_MINIMA = 2;
 export const MAX_JUGADORES = 50;
 export const TOTAL_PREGUNTAS = 5;
 export const MIN_NOMBRE = 2;

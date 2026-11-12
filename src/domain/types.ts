@@ -19,8 +19,6 @@ export interface Jugador {
   salaId: string;
   nombre: string;
   puntaje: number;
-  racha: number;
-  rachaMax: number;
 }
 
 export interface Pregunta {
@@ -56,9 +54,6 @@ export interface Respuesta {
 export interface ResultadoPuntaje {
   esCorrecta: boolean;
   puntosBase: number;
-  enRacha: boolean;
   puntosGanados: number;
-  racha: number;
-  rachaMax: number;
   puntaje: number;
 }

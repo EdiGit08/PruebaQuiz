@@ -29,9 +29,7 @@ const jugador: Jugador = {
   id: 'jugador-1',
   salaId: 'sala-1',
   nombre: 'Ana',
-  puntaje: 0,
-  racha: 0,
-  rachaMax: 0
+  puntaje: 0
 };
 
 const pregunta: Pregunta = {

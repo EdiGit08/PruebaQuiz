@@ -37,9 +37,7 @@ export function mapearJugador(row: JugadorRow): Jugador {
     id: row.id,
     salaId: row.sala,
     nombre: row.nombre,
-    puntaje: row.puntaje,
-    racha: row.racha,
-    rachaMax: row.racha_max
+    puntaje: row.puntaje
   };
 }
 
@@ -84,9 +82,7 @@ export function mapearJugadorJson(valor: Json): Jugador {
     id: leerTexto(obj, 'id'),
     salaId: leerTexto(obj, 'sala'),
     nombre: leerTexto(obj, 'nombre'),
-    puntaje: leerEntero(obj, 'puntaje'),
-    racha: leerEntero(obj, 'racha'),
-    rachaMax: leerEntero(obj, 'racha_max')
+    puntaje: leerEntero(obj, 'puntaje')
   };
 }
 

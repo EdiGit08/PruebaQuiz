@@ -361,8 +361,8 @@ select is(
 );
 select is(
   (select racha from public.jugadores where id = (select id from tests.usuarios where clave = 'p1')),
-  1,
-  'correct answer starts a streak'
+  0,
+  'correct answer leaves the streak at zero'
 );
 select is(
   (select puntaje from public.jugadores where id = (select id from tests.usuarios where clave = 'p2')),
@@ -448,13 +448,13 @@ reset role;
 
 select is(
   (select puntaje from public.jugadores where id = (select id from tests.usuarios where clave = 'p1')),
-  250,
-  'streak bonus gives 150 points'
+  200,
+  'second correct answer adds another 100 points'
 );
 select is(
   (select racha from public.jugadores where id = (select id from tests.usuarios where clave = 'p1')),
-  2,
-  'streak reaches two'
+  0,
+  'streak remains at zero'
 );
 
 select tests.como((select id from tests.usuarios where clave = 'admin'), false);
@@ -488,12 +488,12 @@ select is(
 );
 select is(
   (select racha_max from public.jugadores where id = (select id from tests.usuarios where clave = 'p1')),
-  2,
-  'maximum streak is preserved'
+  0,
+  'maximum streak remains at zero'
 );
 select is(
   (select puntaje from public.jugadores where id = (select id from tests.usuarios where clave = 'p1')),
-  250,
+  200,
   'wrong answer adds no points'
 );
 

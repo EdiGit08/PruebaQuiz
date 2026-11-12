@@ -61,8 +61,8 @@ describe('mappers de filas', () => {
       sala: 'sala-1',
       nombre: 'Ana',
       puntaje: 150,
-      racha: 2,
-      racha_max: 3,
+      racha: 0,
+      racha_max: 0,
       creado_en: '2026-01-01T00:00:00.000Z'
     };
 
@@ -70,9 +70,7 @@ describe('mappers de filas', () => {
       id: 'jugador-1',
       salaId: 'sala-1',
       nombre: 'Ana',
-      puntaje: 150,
-      racha: 2,
-      rachaMax: 3
+      puntaje: 150
     });
   });
 

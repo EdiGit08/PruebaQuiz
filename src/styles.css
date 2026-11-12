@@ -165,15 +165,6 @@
   box-shadow: 0 6px 0 #165206, 0 10px 20px rgba(38, 137, 12, 0.35);
 }
 
-@keyframes flamePulse {
-  0%, 100% { transform: scale(1) rotate(-2deg); filter: drop-shadow(0 0 8px #f97316); }
-  50% { transform: scale(1.08) rotate(2deg); filter: drop-shadow(0 0 16px #ef4444); }
-}
-
-.streak-fire {
-  animation: flamePulse 0.9s infinite ease-in-out;
-}
-
 @keyframes riseUp {
   from { transform: translateY(100%); opacity: 0; }
   to { transform: translateY(0); opacity: 1; }

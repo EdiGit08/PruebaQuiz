@@ -30,6 +30,9 @@ import {
 } from './minigames/canvasGames';
 import type { PreguntaMinijuego } from './minigames/types';
 
+const CODIGO_ADMIN_OCULTO = 'ADM123';
+const NOMBRE_ADMIN_OCULTO = 'adminquiz#';
+
 const TITULOS: Record<TipoMinijuego, string> = {
   kahoot: 'Kahoot clásico',
   plataformas: 'Plataformas 2D',
@@ -113,6 +116,10 @@ export class AppController {
     });
     porId('btnRegistrarAdmin').addEventListener('click', () => {
       void this.registrarAdmin();
+    });
+    porId('btnVolverInicioAdmin').addEventListener('click', () => {
+      this.limpiarError('errorAdmin');
+      this.mostrarInicio();
     });
     porId('btnCrearSala').addEventListener('click', () => {
       void this.crearSala();
@@ -277,6 +284,10 @@ export class AppController {
     const codigo = leerValor('inputCodigoSala');
     this.deshabilitar('btnUnirse', true);
     try {
+      if (this.esAccesoAdminOculto(codigo, nombre)) {
+        this.mostrarAdminLogin();
+        return;
+      }
       const sesion = await this.servicios.sesion.entrarAnonima();
       this.sesionUsuarioId = sesion.usuarioId;
       const resultado = await this.servicios.sala.unirse(codigo, nombre);
@@ -288,6 +299,23 @@ export class AppController {
     } finally {
       this.deshabilitar('btnUnirse', false);
     }
+  }
+
+  private esAccesoAdminOculto(codigo: string, nombre: string): boolean {
+    return (
+      codigo.trim().toUpperCase() === CODIGO_ADMIN_OCULTO &&
+      nombre.trim().toLowerCase() === NOMBRE_ADMIN_OCULTO
+    );
+  }
+
+  private mostrarAdminLogin(): void {
+    this.sound.init();
+    this.mostrarSolo('screenAdminLogin');
+    mostrar(porId('adminControlBar'), false);
+    mostrar(porId('playerHudBar'), false);
+    mostrar(porId('btnLogout'), Boolean(this.sesionUsuarioId));
+    porId('btnLogout').classList.add('flex');
+    porId<HTMLInputElement>('inputAdminEmail').focus();
   }
 
   private async entrarAdmin(): Promise<void> {
@@ -377,9 +405,7 @@ export class AppController {
   }
 
   private async prepararAdmin(): Promise<void> {
-    this.mostrarSolo('screenInicio');
-    mostrar(porId('formJugador'), false);
-    mostrar(porId('formAdmin'), false);
+    this.mostrarSolo('screenAdminPanel');
     mostrar(porId('panelAdminSala'), true);
     mostrar(porId('adminControlBar'), false);
     mostrar(porId('playerHudBar'), false);
@@ -782,34 +808,25 @@ export class AppController {
     const icono = porId('intermissionIcon');
     const titulo = porId('intermissionTitle');
     const subtitulo = porId('intermissionSubtitle');
-    const banner = porId('intermissionStreakBanner');
 
     if (this.esAdmin) {
       tarjeta.className =
         'rounded-2xl border border-sky-400/40 bg-sky-500/10 p-5 text-center shadow-lg';
-      icono.textContent = '📊';
+      icono.className = 'ph-fill ph-chart-bar mb-2 block text-4xl text-sky-300 sm:text-5xl';
       titulo.textContent = `Respuesta correcta: "${resultado.correcta}"`;
       subtitulo.textContent = 'Los jugadores ya pueden ver su resultado. Avanza cuando estés listo.';
     } else if (resultado.acierto) {
       tarjeta.className =
         'rounded-2xl border border-mint-400/50 bg-mint-500/10 p-5 text-center shadow-lg';
-      icono.textContent = '🎉';
+      icono.className = 'ph-fill ph-check-circle mb-2 block text-4xl text-mint-300 sm:text-5xl';
       titulo.textContent = `¡Respuesta correcta! +${resultado.puntos} pts`;
       subtitulo.textContent = `Sumaste ${resultado.puntos} puntos a tu puntaje total`;
     } else {
       tarjeta.className =
         'rounded-2xl border border-coral-400/50 bg-coral-500/10 p-5 text-center shadow-lg';
-      icono.textContent = '💥';
+      icono.className = 'ph-fill ph-x-circle mb-2 block text-4xl text-coral-400 sm:text-5xl';
       titulo.textContent = this.miRespuesta ? 'Respuesta incorrecta (+0 pts)' : 'Sin respuesta (+0 pts)';
       subtitulo.textContent = `La opción correcta era: "${resultado.correcta}"`;
-    }
-
-    const racha = this.jugador?.racha ?? 0;
-    if (!this.esAdmin && resultado.acierto && racha >= 2) {
-      mostrar(banner, true);
-      banner.textContent = `Racha de ${racha} aciertos seguidos (puntos x1.5)`;
-    } else {
-      mostrar(banner, false);
     }
 
     mostrar(porId('btnIntermissionNextAdmin'), this.esAdmin);
@@ -829,11 +846,11 @@ export class AppController {
       return;
     }
     top.forEach((jugador, indice) => {
-      contenedor.appendChild(this.crearFilaRanking(jugador, indice, false));
+      contenedor.appendChild(this.crearFilaRanking(jugador, indice));
     });
   }
 
-  private crearFilaRanking(jugador: Jugador, indice: number, mostrarRachaMax: boolean): HTMLElement {
+  private crearFilaRanking(jugador: Jugador, indice: number): HTMLElement {
     const fila = crear(
       'div',
       `flex items-center justify-between px-4 py-2.5 ${jugador.id === this.jugador?.id ? 'bg-mint-500/10' : ''}`
@@ -847,13 +864,6 @@ export class AppController {
       );
     }
     const derecha = crear('div', 'flex shrink-0 items-center gap-3');
-    if (mostrarRachaMax) {
-      derecha.appendChild(
-        crear('span', 'text-xs font-semibold text-sun-300', `Mejor racha: x${jugador.rachaMax}`)
-      );
-    } else if (jugador.racha >= 2) {
-      derecha.appendChild(crear('span', 'text-xs font-bold text-coral-400', `🔥 x${jugador.racha}`));
-    }
     derecha.appendChild(crear('span', 'font-arcade text-sm text-sun-300 sm:text-base', `${jugador.puntaje} pts`));
     fila.append(izquierda, derecha);
     return fila;
@@ -893,7 +903,7 @@ export class AppController {
       );
     } else {
       ranking.forEach((jugador, indice) => {
-        lista.appendChild(this.crearFilaRanking(jugador, indice, true));
+        lista.appendChild(this.crearFilaRanking(jugador, indice));
       });
     }
     mostrar(porId('podiumAdminControls'), this.esAdmin);
@@ -928,9 +938,6 @@ export class AppController {
     );
     info.appendChild(
       crear('span', 'font-arcade text-sm text-sun-200 sm:text-base', `${jugador?.puntaje ?? 0} pts`)
-    );
-    info.appendChild(
-      crear('span', 'block text-[10px] text-sun-300', `Mejor racha: x${jugador?.rachaMax ?? 0}`)
     );
     const barra = crear(
       'div',
@@ -1094,9 +1101,7 @@ export class AppController {
       );
       const datos = crear('div', 'min-w-0');
       datos.appendChild(crear('p', 'truncate text-sm font-bold text-cream', jugador.nombre));
-      datos.appendChild(
-        crear('p', 'text-[11px] text-slate-400', `${jugador.puntaje} pts · Racha x${jugador.racha}`)
-      );
+      datos.appendChild(crear('p', 'text-[11px] text-slate-400', `${jugador.puntaje} pts`));
       info.appendChild(datos);
       const boton = crear(
         'button',
@@ -1271,18 +1276,6 @@ export class AppController {
     establecerTexto('hudAvatar', jugador.nombre.charAt(0).toUpperCase());
     establecerTexto('hudUserId', jugador.id.slice(0, 8));
     establecerTexto('hudScoreValue', String(jugador.puntaje));
-    establecerTexto('hudStreakValue', `x${jugador.racha}`);
-    const icono = porId('hudStreakIcon');
-    const contenedor = porId('hudStreakContainer');
-    if (jugador.racha >= 2) {
-      icono.textContent = '🔥';
-      contenedor.className =
-        'streak-fire inline-flex items-center gap-1.5 rounded-full border border-coral-400/50 bg-coral-500/15 px-3 py-1 text-xs font-semibold text-cream sm:text-sm';
-    } else {
-      icono.textContent = '⚡';
-      contenedor.className =
-        'inline-flex items-center gap-1.5 rounded-full border border-night-700 bg-night-800/90 px-3 py-1 text-xs font-semibold text-slate-300 sm:text-sm';
-    }
   }
 
   private actualizarChip(texto: string, color: 'verde' | 'ambar' | 'indigo' | 'azul'): void {
@@ -1298,9 +1291,15 @@ export class AppController {
   }
 
   private mostrarSolo(id: string): void {
-    ['screenInicio', 'screenEspera', 'screenJuego', 'screenResultados', 'screenPodio'].forEach(
-      (seccion) => mostrar(porId(seccion), seccion === id)
-    );
+    [
+      'screenInicio',
+      'screenAdminLogin',
+      'screenAdminPanel',
+      'screenEspera',
+      'screenJuego',
+      'screenResultados',
+      'screenPodio'
+    ].forEach((seccion) => mostrar(porId(seccion), seccion === id));
   }
 
   private mostrarInicio(): void {
@@ -1322,8 +1321,6 @@ export class AppController {
     mostrar(porId('adminControlBar'), false);
     mostrar(porId('playerHudBar'), false);
     mostrar(porId('formJugador'), true);
-    mostrar(porId('formAdmin'), true);
-    mostrar(porId('panelAdminSala'), false);
     mostrar(porId('btnLogout'), Boolean(this.sesionUsuarioId));
     porId('btnLogout').classList.add('flex');
     const codigo = this.codigoUrl();
